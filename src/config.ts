@@ -24,11 +24,15 @@ export const config = {
   },
   callbackBaseUrl: req("CALLBACK_BASE_URL"), // https; ACS posts events + connects media here
   voiceLive: {
-    endpoint: req("VOICE_LIVE_ENDPOINT"),
-    apiKey: req("VOICE_LIVE_API_KEY"),
+    endpoint: opt("VOICE_LIVE_ENDPOINT"),
+    apiKey: opt("VOICE_LIVE_API_KEY"),
     model: opt("VOICE_LIVE_MODEL", "gpt-realtime"),
     voice: opt("VOICE_LIVE_VOICE", "en-US-AvaNeural"),
   },
+  groq: {
+    apiKey: opt("GROQ_API_KEY"),
+  },
+  cognitiveServicesEndpoint: opt("COGNITIVE_SERVICES_ENDPOINT"), // Required for ACS TTS
   triggerApiKey: req("TRIGGER_API_KEY"), // Copilot Studio connector sends this in X-GraceCall-Key
   port: Number(opt("PORT", "8080")),
   skipAcsSignatureCheck: opt("SKIP_ACS_SIGNATURE_CHECK") === "1",
@@ -38,12 +42,14 @@ export const config = {
   // Off (default): you trigger calls manually. On: a built-in scheduler auto-dials overdue rentals.
   autoDial: opt("AUTO_DIAL") === "1",
   autoDialAfterMin: Number(opt("AUTO_DIAL_AFTER_MIN", "60")),
+  // How many minutes after the call ends to auto-set the re-check deadline.
+  // Set RECHECK_AFTER_MIN=2 in .env for a fast demo loop. Default 60 (1 hour).
+  recheckAfterMin: Number(opt("RECHECK_AFTER_MIN", "60")),
 };
 
 /** Validate at startup so the server fails fast with a clear message (no secret values printed). */
 export function assertConfig(): void {
   void config.acs.connectionString;
-  void config.voiceLive.apiKey;
   void config.triggerApiKey;
   if (!config.callbackBaseUrl.startsWith("https://")) {
     throw new Error("CALLBACK_BASE_URL must be an https URL reachable by ACS (use a dev tunnel locally).");

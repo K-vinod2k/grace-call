@@ -9,6 +9,7 @@ import {
   CallAutomationClient,
   type CallInvite,
   type CreateCallResult,
+  type TextSource,
 } from "@azure/communication-call-automation";
 import { config } from "../config.js";
 
@@ -37,12 +38,16 @@ export async function placeOutboundCall(toE164: string, rentalId: string): Promi
 
   // Day-0 mode (ENABLE_MEDIA_STREAMING=0): just ring + play a TTS disclosure on CallConnected.
   if (!config.enableMediaStreaming) {
-    return getClient().createCall(callInvite, callbackUri);
+    return getClient().createCall(callInvite, callbackUri, {
+      callIntelligenceOptions: { cognitiveServicesEndpoint: config.cognitiveServicesEndpoint },
+    });
   }
 
-  // Full mode: ACS streams 24kHz PCM both ways to /acs/media; Voice Live runs the conversation.
+  // Full mode: ACS streams 24kHz PCM both ways to /acs/media; Voice Live / Groq runs the conversation.
   // audioFormat pcm24KMono matches Azure Voice Live exactly — no resampling needed.
+  // callIntelligenceOptions is required here too so ACS TTS (playToAll) works during the call.
   return getClient().createCall(callInvite, callbackUri, {
+    callIntelligenceOptions: { cognitiveServicesEndpoint: config.cognitiveServicesEndpoint },
     mediaStreamingOptions: {
       transportType: "websocket",
       transportUrl: mediaWebSocketUrl(rentalId),
@@ -61,13 +66,8 @@ export async function placeOutboundCall(toE164: string, rentalId: string): Promi
  */
 export async function playText(callConnectionId: string, text: string): Promise<void> {
   const callMedia = getClient().getCallConnection(callConnectionId).getCallMedia();
-  await callMedia.playToAll([
-    {
-      kind: "textSource",
-      text,
-      voiceName: config.voiceLive.voice,
-    } as never, // TextSource shape varies by SDK minor; see README note.
-  ]);
+  const source: TextSource = { kind: "textSource", text, voiceName: config.voiceLive.voice };
+  await callMedia.playToAll([source]);
 }
 
 export function getCallMedia(callConnectionId: string) {

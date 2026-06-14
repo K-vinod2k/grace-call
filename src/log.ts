@@ -14,6 +14,8 @@ export interface CallRecord {
   transcript: { role: "agent" | "customer"; text: string; at: string }[];
   toolActions: { name: string; detail?: Record<string, unknown>; at: string }[];
   outcome?: string;
+  /** Called by the Groq conversation loop to unmute audio after ACS TTS finishes. */
+  onPlayCompleted?: () => void;
 }
 
 const calls: CallRecord[] = [];

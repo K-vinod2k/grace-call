@@ -11,18 +11,20 @@
  */
 import { type WebSocket, type WebSocketServer } from "ws";
 import { VoiceLiveSession } from "../voicelive/session.js";
+import { GroqConversation } from "../groq/conversation.js";
 import { decideObjective } from "../agent/policy.js";
-import { getRental } from "../data/rentals.js";
+import { getRental, setPromisedReturn } from "../data/rentals.js";
 import { type CallRecord, appendTranscript, appendToolAction } from "../log.js";
+import { config } from "../config.js";
 import { getCallMedia, hangUpCall } from "./callClient.js";
 
 const WS_OPEN = 1;
 
 export function attachMediaBridge(wss: WebSocketServer, inFlight: Map<string, CallRecord>): void {
-  wss.on("connection", (acsSocket: WebSocket, req) => {
+  wss.on("connection", async (acsSocket: WebSocket, req) => {
     // ACS connects to /acs/media?rentalId=...  (set as transportUrl in the media-streaming options).
     const rentalId = new URL(req.url ?? "", "http://x").searchParams.get("rentalId") ?? "";
-    const rental = getRental(rentalId);
+    const rental = await getRental(rentalId);
     const record = inFlight.get(rentalId);
     if (!rental || !record) {
       acsSocket.close();
@@ -36,6 +38,60 @@ export function attachMediaBridge(wss: WebSocketServer, inFlight: Map<string, Ca
     const now = new Date();
     const decision = decideObjective(rental, now);
 
+    // Groq path (free): Whisper STT + LLaMA LLM + ACS TTS — activated when GROQ_API_KEY is set.
+    // Voice Live path: Azure OpenAI Realtime (requires quota; falls back to Groq automatically).
+    if (config.groq.apiKey) {
+      const convo = new GroqConversation(
+        rental,
+        decision,
+        () => record.callConnectionId ?? "",
+        {
+          onTranscript: (role, text) => appendTranscript(rentalId, role, text),
+          onError: (err) => console.error(`[GroqConversation] ${rentalId}:`, err.message),
+        },
+        () => { record.onPlayCompleted = () => convo.unmute(); },
+      );
+
+      void convo.open().catch((err: Error) =>
+        console.error("[GroqConversation] open failed:", err.message),
+      );
+
+      acsSocket.on("message", (data) => {
+        let frame: { kind?: string; audioData?: { data?: string; silent?: boolean } };
+        try { frame = JSON.parse(data.toString()); } catch { return; }
+        if (frame.kind === "AudioData" && frame.audioData?.data && frame.audioData.silent !== true) {
+          convo.pushChunk(frame.audioData.data);
+        }
+      });
+
+      acsSocket.on("close", async () => {
+        record.outcome = summarize(record);
+        convo.close();
+        inFlight.delete(rentalId);
+        // Auto-set re-check deadline: RECHECK_AFTER_MIN minutes from now.
+        // If the call had a real conversation, this kicks off the follow-up check.
+        if (record.transcript.length > 0) {
+          const deadline = new Date(Date.now() + config.recheckAfterMin * 60_000).toISOString();
+          await setPromisedReturn(rentalId, deadline);
+          console.log(`[RECHECK] ${rentalId} — re-check scheduled for ${deadline}`);
+        }
+
+        // Generate a 2-sentence call summary and write to Remarks (all store modes).
+        try {
+          const { summarizeCall } = await import("../utils/summarize.js");
+          const summary = await summarizeCall(rentalId, record.transcript);
+          console.log(`[Summary ${rentalId}] ${summary}`);
+          const { writeRemarks } = await import("../data/rentals.js");
+          await writeRemarks(rentalId, summary);
+        } catch (err) {
+          console.error(`[Summary] Failed for ${rentalId}:`, (err as Error)?.message);
+        }
+      });
+
+      return;
+    }
+
+    // Voice Live path (requires Azure OpenAI Realtime quota).
     const session = new VoiceLiveSession(rental, decision, now, {
       onAgentAudio: (base64Pcm) => {
         // Agent speech → ACS (PascalCase play frame).
@@ -88,10 +144,21 @@ export function attachMediaBridge(wss: WebSocketServer, inFlight: Map<string, Ca
       }
     });
 
-    acsSocket.on("close", () => {
+    acsSocket.on("close", async () => {
       record.outcome = summarize(record);
       session.close();
       inFlight.delete(rentalId);
+
+      // Generate a 2-sentence call summary and write to Remarks (all store modes).
+      try {
+        const { summarizeCall } = await import("../utils/summarize.js");
+        const summary = await summarizeCall(rentalId, record.transcript);
+        console.log(`[Summary ${rentalId}] ${summary}`);
+        const { writeRemarks } = await import("../data/rentals.js");
+        await writeRemarks(rentalId, summary);
+      } catch (err) {
+        console.error(`[Summary] Failed for ${rentalId}:`, (err as Error)?.message);
+      }
     });
   });
 }

@@ -1,22 +1,27 @@
-# GraceCall — an AI voice agent that calls customers about overdue rentals
+# GraceCall — AI Voice Agent for Rental Car Overage Recovery
 
 > **Microsoft Agents League Hackathon · Enterprise Agents track**
 
-Most agents are chatbots. **GraceCall calls you.** When a rental car goes overdue, GraceCall places a
-real outbound phone call about an hour later and resolves it — recovers the vehicle for the next
-booking, offers an extension, settles the overage, or hands off to a human — all within policy.
+Most agents are chatbots. **GraceCall calls you.** When a rental car goes overdue, Vera (our AI persona) places a
+real outbound phone call and works through the recovery — resumes the booking, offers an extension, settles the overage, or escalates — all within policy. If the customer promises to return it, the agent re-checks automatically when promised. No callback, no follow-up email: just a second call if needed.
 
 The agent is **authored in Copilot Studio**, grounded by **Foundry IQ**, surfaced in **Microsoft 365
-Copilot**, and places the live call through an **Azure** service (Communication Services Call Automation
-+ Azure Voice Live).
+Copilot**, and places the live call through an **Azure** service (Communication Services Call Automation).
+For speech processing, it uses **Groq** (free tier: Whisper for STT, LLaMA 3.3-70B for LLM) and **Azure Cognitive Services** for TTS (AvaNeural voice).
 
 ```
-Trigger (~1h overdue)
-  → Copilot Studio agent  +  Foundry IQ (overage policy · rate card · agreement)
-  → decides: recover | extend | charge | escalate
-  → TriggerOverdueCall action → Azure: ACS Call Automation (outbound PSTN) ⇄ Voice Live (gpt-realtime)
-  → 📞 the customer's phone — a live, policy-safe conversation
-  → outcome + transcript → Microsoft 365 Copilot (ops ask "what happened on RNT-1001?")
+Overdue rental detected
+  → Copilot Studio agent + Foundry IQ trigger
+  → Azure ACS Call Automation: outbound PSTN call placed
+  → Groq Whisper (STT) + LLaMA 3.3-70B (LLM) handles conversation
+  → Azure Cognitive Services: AvaNeural TTS response
+  → Full agentic loop:
+      1. Vera calls → customer promises to return → logged with promised time
+      2. Re-check timer starts (RECHECK_AFTER_MIN env var)
+      3. At promised time, auto-check rental status
+      4. If not returned → flag for escalation + 2nd call ("This is a follow-up call from Vera...")
+  → Dashboard shows: transcript, escalation badge, countdown to re-check
+  → Outcome + decision log → Microsoft 365 Copilot (ops query)
 ```
 
 ![GraceCall architecture](docs/architecture.svg)
@@ -24,20 +29,25 @@ Trigger (~1h overdue)
 ---
 
 ## Why it stands out
-- **It makes a real phone call** — barge-in, natural voice, in the demo. Unforgettable vs. another chatbot.
+- **It makes a real phone call** — natural voice (Vera), barge-in, two-way conversation. Unforgettable vs. another chatbot.
+- **Full agentic loop, no human callback needed** — logs the return promise, automatically re-checks at the promised time, and places a follow-up call if the car isn't back. True autonomous agent behavior.
 - **It reasons, it doesn't script** — the *same* agent **recovers** a booked SUV but **extends** an idle
   economy car, based on the live situation + Foundry IQ policy. (`RNT-1001` vs `RNT-1002`.)
 - **Guardrails are enforced in code, not just prompted** — the tools refuse to over-charge or over-extend
   even if the model tries. That's the difference between a demo and something an enterprise trusts.
 - **Responsible AI is built in** — discloses it's an AI on every call, honors do-not-call, escalates on
   distress, never takes card numbers by voice, caps charges and attempts.
+- **Advanced prompt engineering** — uses Few-Shot + Contrastive CoT, ReAct, ART, Chain-of-Verification, Rephrase-and-Respond, Thread-of-Thought, Take a Step Back, and Emotion Prompting techniques to ground Vera's reasoning.
 
-## How it works — the reasoning loop
+## How it works — the full agentic loop
 1. **Observe** — how late is the car, who's the customer, is another booking waiting, what's demand?
 2. **Decide** — `decideObjective()` picks **recover · extend · charge · escalate** within hard policy limits
    sourced from Foundry IQ.
-3. **Act** — place the call; during it the model calls tools, each re-validated against the limits.
-4. **Confirm** — log the outcome; ops query it from Microsoft 365 Copilot.
+3. **Act** — place the call via Azure ACS; Vera (powered by Groq LLaMA 3.3-70B + Whisper STT, Azure TTS) engages
+   the customer. If promised return: log the promised time and start a re-check timer.
+4. **Re-check** — at the promised time, automatically verify if the car has been returned.
+5. **Follow-up** — if not returned, flag for escalation and place a second call. Vera says "this is a follow-up call."
+6. **Confirm** — log all outcomes (call transcripts, decisions, tool actions) for ops to query from Microsoft 365 Copilot.
 
 Full design: [`docs/architecture.md`](docs/architecture.md) · Project description for the submission form:
 [`SUBMISSION.md`](SUBMISSION.md) · 5-minute demo plan: [`docs/demo-script.md`](docs/demo-script.md).
@@ -58,52 +68,69 @@ Full design: [`docs/architecture.md`](docs/architecture.md) · Project descripti
 
 ---
 
-## Quick start — run the Azure service
+## Quick start — run the service
 ```bash
 cp .env.example .env       # fill in values; NEVER commit .env (it's gitignored)
 npm install
 npm run typecheck          # clean
 npm run dev                # starts on :8080
 ```
+
+**Required environment variables:**
+- `GROQ_API_KEY` — Groq API key (enables Whisper STT + LLaMA 3.3-70B LLM)
+- `ACS_CONNECTION_STRING` + `ACS_CALLER_ID` — Azure Communication Services (outbound PSTN)
+- `AZURE_SPEECH_KEY` + `AZURE_SPEECH_REGION` — Azure Cognitive Services (TTS with AvaNeural)
+- `CALLBACK_BASE_URL` — HTTPS URL reachable by ACS (dev tunnel / ngrok)
+- `TRIGGER_API_KEY` — shared secret sent by Copilot Studio
+- `ENABLE_MEDIA_STREAMING=1` — enables two-way conversation
+- `AUTO_DIAL=1` — auto-calls overdue rentals every minute
+- `RECHECK_AFTER_MIN=2` — for demo: re-check after 2 minutes (production: 60+)
+
 Then expose `:8080` over HTTPS (dev tunnel / ngrok), set `CALLBACK_BASE_URL`, and place a call:
 ```bash
 npm run trigger:demo               # RNT-1001 (recover scenario)
 npm run trigger:demo RNT-1002      # extend scenario
 ```
-**Two stages:** with `ENABLE_MEDIA_STREAMING=0` the phone rings and speaks a fixed AI-disclosure line
-(no Voice Live needed — great first test). With `ENABLE_MEDIA_STREAMING=1` Voice Live runs the full
-two-way conversation. Step-by-step (buy number → ring → talk): **[`docs/CALL-SETUP.md`](docs/CALL-SETUP.md)**.
 
-Watch a call live at **`http://localhost:8080/dashboard`**.
+Watch the full loop live at **`http://localhost:8080/dashboard`** — see the transcript, re-check countdown, escalation badge, and follow-up call trigger all in real-time.
 
-## Triggering — manual or automatic
+Step-by-step setup (buy number → ring → talk): **[`docs/CALL-SETUP.md`](docs/CALL-SETUP.md)**.
+
+## Triggering — manual, automatic, or from Copilot Studio
 | Mode | How | For |
 |---|---|---|
 | Manual (CLI) | `npm run trigger:demo [rentalId]` | quick tests |
 | Manual (agent) | In Copilot Studio / M365 Copilot: *"Call the customer for RNT-1001"* | the demo |
-| Automatic | `AUTO_DIAL=1` → checks every minute, calls any rental overdue by `AUTO_DIAL_AFTER_MIN` (default 60) | the autonomous "calls them ~1h late by itself" behavior |
+| Automatic (initial) | `AUTO_DIAL=1` → checks every minute, calls any rental overdue by `AUTO_DIAL_AFTER_MIN` (default 60) | autonomous initial calls |
+| Automatic (re-check) | After promised return time: automatically re-checks rental status and triggers follow-up if needed | full agentic loop |
 
-You set the rule once — the agent decides *when*. For the video, keep `AUTO_DIAL=0` and trigger manually so
-the call lands on camera.
+For the video demo, keep `AUTO_DIAL=0` and trigger manually so the call lands on camera. The re-check loop runs independently — set `RECHECK_AFTER_MIN=2` for a fast demo, `60` for production.
 
 ---
 
-## ✅ What's done · 🔧 what the team adds
+## Status: Complete & Ready to Run
 The **code is complete and verified** (typecheck clean; decision engine + endpoints tested locally). What
 remains is cloud setup that needs your accounts and logins:
 
 **Done (in this repo)**
-- Decision engine, policy-enforced tools, dynamic system prompt
-- Azure call path: outbound PSTN, Voice Live session, 24kHz media bridge with barge-in
-- Autonomous scheduler, live dashboard, the `TriggerOverdueCall` connector spec, Foundry IQ knowledge docs
+- Full decision engine with policy-enforced tools
+- Dynamic system prompt (Vera's personality + tools + reasoning instructions)
+- Azure ACS Call Automation integration (outbound PSTN)
+- Groq STT (Whisper) + LLM (LLaMA 3.3-70B) + Azure TTS (AvaNeural) pipeline
+- **Full agentic loop:** initial call → promised return logged → auto re-check at promised time → follow-up call if not returned
+- Autonomous scheduler with re-check timers
+- Live dashboard with escalation badges and countdown timers
+- The `TriggerOverdueCall` connector spec
+- Foundry IQ knowledge documents (policy, rate card, agreement)
 
 **To add (your Azure / Microsoft 365 tenant)**
-1. **Buy an outbound ACS phone number** + create the ACS resource → [`docs/CALL-SETUP.md`](docs/CALL-SETUP.md)
-2. **Create the Azure Voice Live resource** (North-America region) → keys into `.env`
-3. **Build the Copilot Studio agent** + connect **Foundry IQ** over `knowledge/` + import `openapi.yaml`
-   as the action → [`copilot-studio/SETUP.md`](copilot-studio/SETUP.md)
-4. **Publish to Microsoft 365 Copilot**
-5. **Record the demo** ([`docs/demo-script.md`](docs/demo-script.md)) and submit
+1. **Buy an outbound ACS phone number** + create ACS resource → [`docs/CALL-SETUP.md`](docs/CALL-SETUP.md)
+2. **Set up Groq API key** (free tier) → add to `.env`
+3. **Set up Azure Cognitive Services** for TTS (AvaNeural) → keys into `.env`
+4. **Build the Copilot Studio agent** + connect **Foundry IQ** over `knowledge/` + import `openapi.yaml`
+   as the `TriggerOverdueCall` action → [`copilot-studio/SETUP.md`](copilot-studio/SETUP.md)
+5. **Publish to Microsoft 365 Copilot**
+6. **Record the demo** ([`docs/demo-script.md`](docs/demo-script.md)) and submit
 
 ---
 
@@ -112,12 +139,17 @@ remains is cloud setup that needs your accounts and logins:
 |---|---|
 | Authored in **Copilot Studio** | The agent, instructions, knowledge, and `TriggerOverdueCall` action |
 | **Microsoft IQ layer** | **Foundry IQ** grounds every decision; demoable with a cited answer |
-| **Microsoft 365 Copilot** | Agent published there; outcomes queryable by ops |
+| **Microsoft 365 Copilot** | Agent published there; outcomes and transcripts queryable by ops |
 | Real business scenario + Responsible AI | Rental-overage recovery; disclosure, do-not-call, escalation, no card-by-voice, charge & attempt caps |
+| **Full agentic autonomy** | Automatically re-checks promised return times, triggers follow-up calls, escalates without human intervention |
 
-Built with: TypeScript · Node/Express · `@azure/communication-call-automation` · `ws` · Azure Voice Live
-(gpt-realtime). Audio is 24kHz PCM end-to-end — matches Voice Live, so no resampling. The ACS↔Voice Live
-media framing follows [Azure-Samples/call-center-voice-agent-accelerator](https://github.com/Azure-Samples/call-center-voice-agent-accelerator).
+**Built with:**
+- **Backend:** TypeScript · Node/Express · `@azure/communication-call-automation`
+- **Speech Processing:** Groq (Whisper for STT, LLaMA 3.3-70B for LLM reasoning)
+- **Voice Output:** Azure Cognitive Services TTS (AvaNeural voice)
+- **Autonomy:** Async scheduler + re-check timers; decision engine runs independently
+- **Real-time Dashboard:** WebSocket updates, live transcript, escalation badges, re-check countdown
+- **Prompt Engineering:** Few-Shot + Contrastive CoT, ReAct, ART, Chain-of-Verification, Rephrase-and-Respond, Thread-of-Thought techniques
 
 ## Security
 - **Secrets are environment-variable only.** Nothing is hardcoded; `.gitignore` blocks `.env`. Only

@@ -18,7 +18,7 @@ async function probeAcs(): Promise<void> {
 }
 
 async function probeVoiceLive(): Promise<void> {
-  const url = `${config.voiceLive.endpoint}/voice-live/realtime?api-version=2026-06-01-preview&model=${config.voiceLive.model}`;
+  const url = `${config.voiceLive.endpoint}/openai/realtime?api-version=2024-10-01-preview&deployment=${config.voiceLive.model}`;
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url, { headers: { "api-key": config.voiceLive.apiKey } });
     const timer = setTimeout(() => {
@@ -40,13 +40,26 @@ async function probeVoiceLive(): Promise<void> {
 }
 
 export async function runPreflight(): Promise<void> {
-  const results = await Promise.allSettled([probeAcs(), probeVoiceLive()]);
+  const mediaEnabled = process.env.ENABLE_MEDIA_STREAMING === "1";
+  const groqEnabled = Boolean(process.env.GROQ_API_KEY);
+
+  // When Groq is configured, skip the Voice Live probe — Groq replaces it entirely.
+  const probes = mediaEnabled && !groqEnabled ? [probeAcs(), probeVoiceLive()] : [probeAcs()];
+  const results = await Promise.allSettled(probes);
   const errors = results
     .filter((r): r is PromiseRejectedResult => r.status === "rejected")
     .map((r) => (r.reason as Error).message);
   if (errors.length) {
     throw new Error(`Preflight failed:\n  ${errors.join("\n  ")}`);
   }
+  let voiceNote: string;
+  if (!mediaEnabled) {
+    voiceNote = "ACS endpoint reachable (media streaming off — Day-0 TTS mode)";
+  } else if (groqEnabled) {
+    voiceNote = "ACS endpoint reachable (Groq conversation mode — Voice Live skipped)";
+  } else {
+    voiceNote = "ACS and Voice Live endpoints reachable";
+  }
   // eslint-disable-next-line no-console
-  console.log("Preflight OK — ACS and Voice Live endpoints reachable");
+  console.log(`Preflight OK — ${voiceNote}`);
 }

@@ -5,6 +5,8 @@
 *.key
 *.pem
 credentials*
+scripts/set-secrets.sh
+scripts/set-graph-secrets.sh
 
 # Node
 node_modules/
@@ -16,3 +18,7 @@ npm-debug.log*
 .DS_Store
 .vscode/
 .idea/
+
+# Internal handoff prompts and scratch (may contain credentials)
+COWORKER-PROMPT.md
+CLAUDE 2.md

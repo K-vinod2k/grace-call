@@ -107,7 +107,7 @@ export async function dispatchTool(
 ): Promise<ToolResult> {
   switch (name) {
     case "extendRental":
-      return extendRental(Number(args.hours), ctx);
+      return await extendRental(Number(args.hours), ctx);
     case "chargeOverage":
       return chargeOverage(Number(args.amountUSD), ctx);
     case "scheduleReturn":
@@ -121,7 +121,7 @@ export async function dispatchTool(
   }
 }
 
-function extendRental(hours: number, ctx: ToolContext): ToolResult {
+async function extendRental(hours: number, ctx: ToolContext): Promise<ToolResult> {
   const { decision, rental } = ctx;
   if (!(hours > 0)) return { ok: false, message: "Extension must be a positive number of hours." };
   if (decision.constraints.mustRecoverVehicle) {
@@ -134,7 +134,7 @@ function extendRental(hours: number, ctx: ToolContext): ToolResult {
     };
   }
   const newDue = new Date(new Date(rental.returnDueAt).getTime() + hours * 3_600_000).toISOString();
-  updateRental(rental.rentalId, { returnDueAt: newDue });
+  await updateRental(rental.rentalId, { returnDueAt: newDue });
   return {
     ok: true,
     message: `Extended ${hours}h. New return due ${newDue}. Charged at the daily rate ($${rental.dailyRate}/day, prorated).`,

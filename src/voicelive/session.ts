@@ -43,7 +43,7 @@ export class VoiceLiveSession {
   }
 
   async connect(): Promise<void> {
-    const url = `${config.voiceLive.endpoint}/voice-live/realtime?api-version=2026-06-01-preview&model=${config.voiceLive.model}`;
+    const url = `${config.voiceLive.endpoint}/openai/realtime?api-version=2024-10-01-preview&deployment=${config.voiceLive.model}`;
     this.ws = new WebSocket(url, { headers: { "api-key": config.voiceLive.apiKey } });
 
     await new Promise<void>((resolve, reject) => {

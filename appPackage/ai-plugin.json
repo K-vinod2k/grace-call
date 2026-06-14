@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/copilot/plugin/v2.1/schema.json",
+  "schema_version": "v2.1",
+  "name_for_human": "GraceCall",
+  "description_for_human": "Places outbound calls for overdue car rentals.",
+  "description_for_model": "Use TriggerOverdueCall to place an outbound phone call for an overdue rental. Pass the rentalId (e.g. RNT-1001). Returns objective (recover/extend/charge/escalate), rationale, overageOwedUSD, whether the call was placed, and the callConnectionId.",
+  "functions": [
+    {
+      "name": "TriggerOverdueCall",
+      "description": "Place an outbound overage call for a rental. Decides the objective per policy, places the call via ACS, runs the AI conversation via Azure Voice Live, and returns the outcome.",
+      "capabilities": {
+        "response_semantics": {
+          "data_path": "$",
+          "properties": {
+            "title": "$.rentalId",
+            "subtitle": "$.objective"
+          }
+        }
+      }
+    }
+  ],
+  "runtimes": [
+    {
+      "type": "OpenApi",
+      "auth": {
+        "type": "ApiKeyPluginVault",
+        "reference_id": "GraceCallKeyAuth"
+      },
+      "spec": {
+        "url": "openapi.yaml"
+      },
+      "run_for_functions": [
+        "TriggerOverdueCall"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/vDevPreview/MicrosoftTeams.schema.json",
+  "manifestVersion": "devPreview",
+  "version": "1.0.0",
+  "id": "859d6dbe-ce6f-4920-b955-30649fb2f240",
+  "developer": {
+    "name": "Vinod Kumar Kumaravel",
+    "websiteUrl": "https://github.com/K-vinod2k/grace-call",
+    "privacyUrl": "https://github.com/K-vinod2k/grace-call",
+    "termsOfUseUrl": "https://github.com/K-vinod2k/grace-call"
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "name": {
+    "short": "GraceCall",
+    "full": "GraceCall — Rental Overage Agent"
+  },
+  "description": {
+    "short": "Outbound AI voice agent for rental car overage recovery.",
+    "full": "GraceCall is an autonomous enterprise agent that handles overdue rental returns by placing AI-driven courtesy calls via Azure Communication Services and Azure Voice Live, integrated with Microsoft 365 Copilot for ops team visibility."
+  },
+  "accentColor": "#0078D4",
+  "copilotAgents": {
+    "declarativeAgents": [
+      {
+        "id": "gracecall",
+        "file": "declarativeAgent.json"
+      }
+    ]
+  }
+}

@@ -6,13 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm install
-npm run typecheck          # tsc --noEmit; run this before every commit
+npm run typecheck          # tsc --noEmit; run before every commit
+npm test                   # node built-in test runner; 5 policy unit tests
 npm run dev                # tsx watch — hot-reload dev server on :8080
 npm run trigger:demo       # fire RNT-1001 (recover scenario)
 npm run trigger:demo RNT-1002  # extend scenario
 ```
 
-There are no automated tests. `typecheck` is the only verification gate. The app fails fast at startup if any required env var is missing (`assertConfig()` in `src/config.ts`).
+`typecheck` and `npm test` are the two verification gates. The app runs a credential preflight at startup (`src/preflight.ts`) and exits fast if ACS or Voice Live endpoints are unreachable. `assertConfig()` in `src/config.ts` catches missing env vars before that.
 
 ## Environment setup
 
@@ -62,11 +63,13 @@ GraceCall is split into two conceptual layers:
 | `src/voicelive/session.ts` | Azure Voice Live WebSocket client; handles Realtime protocol events |
 | `src/acs/callClient.ts` | ACS Call Automation wrapper — place call, play TTS, hang up |
 | `src/acs/mediaBridge.ts` | Bridges ACS media WS ↔ `VoiceLiveSession`; barge-in + escalation side-effects |
+| `src/preflight.ts` | Startup credential probes — HTTP to ACS, WebSocket to Voice Live; exits on failure |
 | `src/data/rentals.ts` | In-memory rental seed; prod would use Dataverse/Cosmos via Foundry IQ |
 | `src/config.ts` | Env loader + `assertConfig()` |
 | `src/log.ts` | In-memory call log; `recentCalls()` feeds the dashboard and `/calls` endpoint |
 | `src/scheduler.ts` | Optional auto-dialer — polls every minute when `AUTO_DIAL=1` |
 | `src/dashboard.ts` | SSE/polling live dashboard HTML at `/dashboard` |
+| `src/agent/__tests__/policy.test.ts` | Unit tests for `decideObjective()` — 5 cases via `node:test` |
 | `copilot-studio/openapi.yaml` | Custom connector spec for the `TriggerOverdueCall` action |
 | `knowledge/` | Foundry IQ knowledge source documents |
 

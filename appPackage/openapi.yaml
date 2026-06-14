@@ -8,8 +8,8 @@ info:
     reasoning (objective + rationale) so it is visible inside the agent and M365 Copilot.
   version: "1.0.0"
 servers:
-  - url: https://grace-call.greenplant-d2f64cf8.eastus.azurecontainerapps.io
-    description: GraceCall backend on Azure Container Apps
+  - url: https://ninth-douche-disfigure.ngrok-free.dev
+    description: ngrok tunnel to local GraceCall service on :8080
 paths:
   /trigger-call:
     post:
