@@ -1,0 +1,26 @@
+{
+  "name": "grace-call",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Outbound rental-overage voice agent — Microsoft Agents League (Enterprise track)",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node --import tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "trigger:demo": "tsx src/scripts/trigger-demo.ts"
+  },
+  "dependencies": {
+    "@azure/communication-call-automation": "^1.5.1",
+    "dotenv": "^16.4.5",
+    "express": "^5.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^20",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5"
+  }
+}

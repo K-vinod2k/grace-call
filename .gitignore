@@ -1,0 +1,18 @@
+# Secrets — NEVER commit. The public hackathon repo must be clean.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+credentials*
+
+# Node
+node_modules/
+dist/
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
