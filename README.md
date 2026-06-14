@@ -5,13 +5,13 @@
 Most agents are chatbots. **GraceCall calls you.** When a rental car goes overdue, Vera (our AI persona) places a
 real outbound phone call and works through the recovery — resumes the booking, offers an extension, settles the overage, or escalates — all within policy. If the customer promises to return it, the agent re-checks automatically when promised. No callback, no follow-up email: just a second call if needed.
 
-The agent is **authored in Copilot Studio**, grounded by **Foundry IQ**, surfaced in **Microsoft 365
-Copilot**, and places the live call through an **Azure** service (Communication Services Call Automation).
+The agent is **orchestrated by Azure AI Foundry** (GraceCall-Dispatcher agent, gpt-oss-120b), grounded in policy by **Foundry IQ** knowledge sources, and places the live call through **Azure Communication Services** Call Automation.
 For speech processing, it uses **Groq** (free tier: Whisper for STT, LLaMA 3.3-70B for LLM) and **Azure Cognitive Services** for TTS (AvaNeural voice).
 
 ```
 Overdue rental detected
-  → Copilot Studio agent + Foundry IQ trigger
+  → Azure AI Foundry agent (GraceCall-Dispatcher, gpt-oss-120b) + Foundry IQ knowledge
+  → triggerOverdueCall OpenAPI tool → POST /trigger-call → GraceCall service
   → Azure ACS Call Automation: outbound PSTN call placed
   → Groq Whisper (STT) + LLaMA 3.3-70B (LLM) handles conversation
   → Azure Cognitive Services: AvaNeural TTS response
@@ -21,10 +21,8 @@ Overdue rental detected
       3. At promised time, auto-check rental status
       4. If not returned → flag for escalation + 2nd call ("This is a follow-up call from Vera...")
   → Dashboard shows: transcript, escalation badge, countdown to re-check
-  → Outcome + decision log → Microsoft 365 Copilot (ops query)
+  → Outcome + decision log surfaced in Foundry agent chat
 ```
-
-![GraceCall architecture](docs/architecture.svg)
 
 ---
 
@@ -47,10 +45,7 @@ Overdue rental detected
    the customer. If promised return: log the promised time and start a re-check timer.
 4. **Re-check** — at the promised time, automatically verify if the car has been returned.
 5. **Follow-up** — if not returned, flag for escalation and place a second call. Vera says "this is a follow-up call."
-6. **Confirm** — log all outcomes (call transcripts, decisions, tool actions) for ops to query from Microsoft 365 Copilot.
-
-Full design: [`docs/architecture.md`](docs/architecture.md) · Project description for the submission form:
-[`SUBMISSION.md`](SUBMISSION.md) · 5-minute demo plan: [`docs/demo-script.md`](docs/demo-script.md).
+6. **Confirm** — log all outcomes (call transcripts, decisions, tool actions) in the Foundry agent chat.
 
 ---
 
@@ -58,13 +53,10 @@ Full design: [`docs/architecture.md`](docs/architecture.md) · Project descripti
 | Path | What |
 |---|---|
 | `src/agent/` | **The brain** — `systemPrompt.ts`, decision `policy.ts`, policy-enforced `tools.ts`. |
-| `src/acs/`, `src/voicelive/` | Azure telephony core — outbound call, Voice Live session, media bridge. |
+| `src/acs/`, `src/groq/` | Azure telephony core — outbound call, media bridge; Groq STT+LLM conversation loop. |
 | `src/scheduler.ts` | Optional autonomous dialer — calls overdue rentals by itself. |
 | `src/dashboard.ts` | Live demo dashboard (transcript + decisions + tool actions). |
 | `src/data/rentals.ts` | In-memory rental seed (prod = Dataverse/Cosmos via Foundry IQ). |
-| `knowledge/` | Overage policy · rate card · sample agreement — the **Foundry IQ** knowledge source. |
-| `copilot-studio/` | `SETUP.md`, agent instructions, and `openapi.yaml` (the custom connector). |
-| `docs/` | Architecture (`.md` + `.svg`), `CALL-SETUP.md`, and the demo script. |
 
 ---
 
@@ -94,13 +86,11 @@ npm run trigger:demo RNT-1002      # extend scenario
 
 Watch the full loop live at **`http://localhost:8080/dashboard`** — see the transcript, re-check countdown, escalation badge, and follow-up call trigger all in real-time.
 
-Step-by-step setup (buy number → ring → talk): **[`docs/CALL-SETUP.md`](docs/CALL-SETUP.md)**.
-
 ## Triggering — manual, automatic, or from Copilot Studio
 | Mode | How | For |
 |---|---|---|
 | Manual (CLI) | `npm run trigger:demo [rentalId]` | quick tests |
-| Manual (agent) | In Copilot Studio / M365 Copilot: *"Call the customer for RNT-1001"* | the demo |
+| Manual (agent) | In Azure AI Foundry chat: *"Call Alex Rivera about his overdue SUV"* | the demo |
 | Automatic (initial) | `AUTO_DIAL=1` → checks every minute, calls any rental overdue by `AUTO_DIAL_AFTER_MIN` (default 60) | autonomous initial calls |
 | Automatic (re-check) | After promised return time: automatically re-checks rental status and triggers follow-up if needed | full agentic loop |
 
@@ -123,24 +113,21 @@ remains is cloud setup that needs your accounts and logins:
 - The `TriggerOverdueCall` connector spec
 - Foundry IQ knowledge documents (policy, rate card, agreement)
 
-**To add (your Azure / Microsoft 365 tenant)**
+**To add (your Azure tenant)**
 1. **Buy an outbound ACS phone number** + create ACS resource → [`docs/CALL-SETUP.md`](docs/CALL-SETUP.md)
 2. **Set up Groq API key** (free tier) → add to `.env`
 3. **Set up Azure Cognitive Services** for TTS (AvaNeural) → keys into `.env`
-4. **Build the Copilot Studio agent** + connect **Foundry IQ** over `knowledge/` + import `openapi.yaml`
-   as the `TriggerOverdueCall` action → [`copilot-studio/SETUP.md`](copilot-studio/SETUP.md)
-5. **Publish to Microsoft 365 Copilot**
-6. **Record the demo** ([`docs/demo-script.md`](docs/demo-script.md)) and submit
+4. **Create the Azure AI Foundry agent** (GraceCall-Dispatcher, gpt-oss-120b) — paste the system prompt, upload your policy docs as Foundry IQ knowledge sources, and register the `triggerOverdueCall` OpenAPI tool pointing at your deployed server
+5. **Record the demo** and submit
 
 ---
 
 ## Tech stack & how the track requirements are met
 | Requirement | Met by |
 |---|---|
-| Authored in **Copilot Studio** | The agent, instructions, knowledge, and `TriggerOverdueCall` action |
-| **Microsoft IQ layer** | **Foundry IQ** grounds every decision; demoable with a cited answer |
-| **Microsoft 365 Copilot** | Agent published there; outcomes and transcripts queryable by ops |
-| Real business scenario + Responsible AI | Rental-overage recovery; disclosure, do-not-call, escalation, no card-by-voice, charge & attempt caps |
+| **Azure AI Foundry** agent | GraceCall-Dispatcher agent (gpt-oss-120b) — instructions, OpenAPI tool, Foundry IQ knowledge |
+| **Microsoft IQ layer** | **Foundry IQ** knowledge sources (overage policy, rate card, agreement) ground every decision |
+| Real business scenario + Responsible AI | Rental-overage recovery; AI disclosure, do-not-call, escalation, no card-by-voice, charge & attempt caps |
 | **Full agentic autonomy** | Automatically re-checks promised return times, triggers follow-up calls, escalates without human intervention |
 
 **Built with:**
