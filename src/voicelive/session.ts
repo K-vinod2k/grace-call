@@ -115,7 +115,10 @@ export class VoiceLiveSession {
       /* leave empty */
     }
     const result = await dispatchTool(name, args, this.ctx);
-    this.hooks.onToolResult?.(name, result.detail);
+    // Log both successful calls and policy rejections — rejections are the Responsible AI story.
+    const logName = result.ok ? name : `REJECTED:${name}`;
+    const logDetail = result.ok ? result.detail : { reason: result.message, ...result.detail };
+    this.hooks.onToolResult?.(logName, logDetail);
 
     // Return the tool result to the model and let it speak the follow-up.
     this.send({

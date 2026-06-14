@@ -107,8 +107,10 @@ export function decideObjective(r: RentalRecord, now: Date): Decision {
     return {
       objective: "extend",
       rationale:
-        `No upcoming booking for ${r.vehicle.plate} and ${r.location.demandLevel} demand at ` +
-        `${r.location.name}. If the customer wants more time, offer an extension up to ` +
+        (Number.isFinite(nextBookingHrs)
+          ? `Next booking for ${r.vehicle.plate} is in ${nextBookingHrs.toFixed(1)}h (outside the ${constraints.maxAutoExtensionHours}h auto-extension window).`
+          : `No upcoming booking for ${r.vehicle.plate}.`) +
+        ` ${r.location.demandLevel} demand at ${r.location.name}. If the customer wants more time, offer an extension up to ` +
         `${constraints.maxAutoExtensionHours}h at the daily rate ($${r.dailyRate}/day). ` +
         `Otherwise remind and settle the $${overageOwedUSD} overage. ${overMin} min overdue.`,
       constraints,

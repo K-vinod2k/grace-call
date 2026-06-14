@@ -49,7 +49,9 @@ function hoursFromNow(h: number): string {
   return new Date(Date.now() + h * 3_600_000).toISOString();
 }
 
-// --- Seed records for the demo. Phone numbers are placeholders (replace with your test phone). ---
+// --- Seed records for the demo. ---
+// DEMO SETUP: Replace +15551234567 below (appears TWICE — one per rental) with your real test phone
+// number before the demo. Both rentals call the same number by default for ease of testing.
 const store = new Map<string, RentalRecord>([
   [
     "RNT-1001",

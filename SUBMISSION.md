@@ -6,7 +6,7 @@
 **GraceCall is an enterprise voice agent that notices a rental car is overdue and calls the customer — recovering the vehicle, extending the rental, settling the overage, or escalating to a human, all within policy.**
 
 ## The problem
-Rental fleets bleed money on late returns. Every overdue car is either lost overage revenue or — worse — a blocked next booking when the vehicle is already promised to someone else. Chasing each late return by hand doesn't scale: a single airport branch can have dozens open at once, and the highest-value cases (a booked SUV that won't be back for the 7 p.m. pickup) are exactly the ones a busy desk misses.
+Rental fleets bleed money on late returns. Every overdue car is either lost overage revenue or — worse — a blocked next booking when the vehicle is already promised to someone else. A 50-car airport branch has 3–5 overdue returns on a busy day. Zero human calls get made. Chasing each late return by hand doesn't scale: the highest-value cases (a booked SUV that won't be back for the 7 p.m. pickup) are exactly the ones a busy desk misses.
 
 ## The solution
 GraceCall is an autonomous agent **authored in Copilot Studio**, grounded by **Foundry IQ**, and surfaced in **Microsoft 365 Copilot**. About an hour after a return goes overdue, it places a **real outbound phone call** through **Azure Communication Services + Azure Voice Live** and holds a natural, barge-in conversation — then takes the right action: secure a firm return, offer an extension, settle the overage, or hand off to a human.
@@ -36,7 +36,7 @@ Same agent, two rentals, opposite calls — driven only by the data and the Foun
 - **RNT-1001** — Gold customer, SUV at SFO, **another booking in ~2.5h**. The policy's 6-hour recovery window applies → the agent chooses **RECOVER**: it does *not* offer an extension; it secures a firm return time and texts a reminder.
 - **RNT-1002** — Standard customer, economy car in Austin, **no upcoming booking, low demand** → the same agent chooses **EXTEND**: it offers more time or settles the small overage.
 
-The tools that take action **re-enforce the limits** server-side: if the model ever tries to extend past the cap or charge over the ceiling, the tool refuses and routes to a pay link or a human. The policy isn't a suggestion in the prompt — it's enforced in code.
+The tools that take action **re-enforce the limits** server-side: if the model ever tries to extend past the cap or charge over the ceiling, the tool refuses and routes to a pay link or a human. The policy isn't a suggestion in the prompt — it's enforced in code. If the model tries to charge $200 when the ceiling is $150, the tool returns a rejection. The live demo dashboard shows these guardrail events in real time.
 
 ## Responsible AI (built in, not bolted on)
 Discloses it's an AI assistant and that the call may be recorded **in the first sentence**; honors do-not-call absolutely; escalates to a human on dispute, confusion, or distress; **never takes card numbers by voice** (sends a secure pay link); caps auto-charges and extensions; stops after 3 attempts.
@@ -47,7 +47,7 @@ Discloses it's an AI assistant and that the call may be recorded **in the first 
 - **Scales to the whole fleet** — every overdue return becomes a 90-second, on-brand, policy-safe call, with zero agent time.
 
 ## What's next
-Real payment + SMS providers, Dataverse-backed fleet data via Foundry IQ, multi-language, and inbound handling.
+Real payment + SMS providers, Dataverse-backed fleet data via Foundry IQ, multi-language, and inbound handling. The policy engine and Responsible AI layer are vertical-agnostic — hospitality (late hotel checkout), equipment rental, gym memberships. Same architecture, different knowledge documents in Foundry IQ.
 
 ---
 

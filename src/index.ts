@@ -19,13 +19,14 @@ import express, { type Request, type Response } from "express";
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
 import { assertConfig, config } from "./config.js";
-import { getRental } from "./data/rentals.js";
+import { getRental, updateRental } from "./data/rentals.js";
 import { decideObjective } from "./agent/policy.js";
 import { placeOutboundCall, playText } from "./acs/callClient.js";
 import { attachMediaBridge } from "./acs/mediaBridge.js";
 import { startScheduler } from "./scheduler.js";
 import { type CallRecord, recordCall, recentCalls, appendEvent } from "./log.js";
 import { dashboardHtml } from "./dashboard.js";
+import { runPreflight } from "./preflight.js";
 
 assertConfig();
 
@@ -56,6 +57,8 @@ async function runTrigger(rentalId: string): Promise<Record<string, unknown> | n
   const callConnectionId = result.callConnectionProperties?.callConnectionId ?? "pending";
   const record = recordCall({ rentalId, decision, placed: true, callConnectionId, startedAt: now.toISOString() });
   inFlight.set(rentalId, record);
+  // Increment so the attempt cap in decideObjective() fires correctly on subsequent triggers.
+  updateRental(rentalId, { customer: { ...rental.customer, callAttempts: rental.customer.callAttempts + 1 } });
 
   // Return the reasoning so the Copilot Studio agent (and ops in M365 Copilot) can see WHY it called.
   return {
@@ -95,10 +98,15 @@ app.post("/acs/callbacks", async (req: Request, res: Response) => {
       // Day-0 mode (no media streaming): speak a fixed disclosure so the phone demonstrably talks.
       // Full mode: Voice Live drives the call and opens with the disclosure itself — don't double up.
       if (!config.enableMediaStreaming) {
-        await playText(
-          callConnectionId,
-          "Hi, this is an automated assistant from Horizon Car Rental, and this call may be recorded for quality. Goodbye.",
-        );
+        try {
+          await playText(
+            callConnectionId,
+            "Hi, this is an automated assistant from Horizon Car Rental, and this call may be recorded for quality. Goodbye.",
+          );
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error(`playText failed for ${rentalId} (call may have dropped):`, (err as Error)?.message);
+        }
       }
     }
   }
@@ -110,6 +118,12 @@ const server = createServer(app);
 // ACS media streaming WebSocket → Voice Live bridge.
 const wss = new WebSocketServer({ server, path: "/acs/media" });
 attachMediaBridge(wss, inFlight);
+
+await runPreflight().catch((err: Error) => {
+  // eslint-disable-next-line no-console
+  console.error(err.message);
+  process.exit(1);
+});
 
 server.listen(config.port, () => {
   // eslint-disable-next-line no-console

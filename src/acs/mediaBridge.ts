@@ -69,6 +69,10 @@ export function attachMediaBridge(wss: WebSocketServer, inFlight: Map<string, Ca
       // eslint-disable-next-line no-console
       console.error("Voice Live connect failed:", err?.message);
       acsSocket.close();
+      // Hang up so the customer isn't left in silence — Voice Live failure is silent otherwise.
+      if (record.callConnectionId) {
+        void hangUpCall(record.callConnectionId).catch(() => { /* call may already be gone */ });
+      }
     });
 
     acsSocket.on("message", (data) => {
