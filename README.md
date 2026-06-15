@@ -22,29 +22,35 @@ For LLM reasoning and STT, it uses **Groq** (free tier: LLaMA 3.3-70B + Whisper)
 
 ```mermaid
 graph TD
-    PA["⏱️ Power Automate\nevery 5 min"]
+    classDef ms      fill:#0078D4,stroke:#005a9e,color:#fff,rx:6
+    classDef svc     fill:#5c2d91,stroke:#3b1a5a,color:#fff,rx:6
+    classDef groq    fill:#f97316,stroke:#c2530f,color:#fff,rx:6
+    classDef pa      fill:#107c10,stroke:#0a5a0a,color:#fff,rx:6
+    classDef phone   fill:#1f2937,stroke:#374151,color:#e5e7eb,rx:6
 
-    subgraph msft ["Microsoft Platform"]
-        CS["🤖 Copilot Studio\nGraceCall Agent"]
-        FIQ[("📚 Foundry IQ\nPolicy · Rate Card · Agreement")]
-        TOOL(["TriggerOverdueCall\ncustom action"])
-        ACSSVC["📞 Azure Communication Services\nCall Automation · PSTN"]
-        AZURETSS["🔊 Azure Cognitive Services\nAvaNeural TTS"]
-        M365OUT["💬 Microsoft 365 Copilot\nOps queries in Teams"]
+    PA["⏱️ Power Automate\nevery 5 min"]:::pa
+
+    subgraph msft ["  🟦  Microsoft Platform  "]
+        CS["🤖 Copilot Studio\nGraceCall Agent"]:::ms
+        FIQ[("📚 Foundry IQ\nPolicy · Rate Card · Agreement")]:::ms
+        TOOL(["TriggerOverdueCall\ncustom action"]):::ms
+        ACSSVC["📞 Azure Communication Services\nCall Automation · PSTN"]:::ms
+        AZURETSS["🔊 Azure Cognitive Services\nAvaNeural TTS"]:::ms
+        M365OUT["💬 Microsoft 365 Copilot\nOps queries in Teams"]:::ms
     end
 
-    subgraph svc ["GraceCall Service · Azure Container Apps"]
-        DECIDE["decideObjective()\nrecover · extend · charge · escalate"]
-        RECHECK["Re-check Scheduler\n2nd call if not returned"]
-        DASH["Live Dashboard\nlocalhost:8080/dashboard"]
+    subgraph gcsvc ["  🟣  GraceCall Service · Azure Container Apps  "]
+        DECIDE["decideObjective()\nrecover · extend · charge · escalate"]:::svc
+        RECHECK["Re-check Scheduler\n2nd call if not returned"]:::svc
+        DASH["Live Dashboard\n:8080/dashboard"]:::svc
     end
 
-    subgraph groq ["Groq — free tier"]
-        WSTT["Whisper STT\ntranscribes caller audio"]
-        LLAMA["LLaMA 3.3-70B\nconversation reasoning"]
+    subgraph groqtier ["  🟠  Groq — free tier  "]
+        WSTT["Whisper STT\ntranscribes caller audio"]:::groq
+        LLAMA["LLaMA 3.3-70B\nconversation reasoning"]:::groq
     end
 
-    PHONE["📱 Customer Phone"]
+    PHONE["📱 Customer Phone"]:::phone
 
     PA --> CS
     CS <-->|"retrieves policy"| FIQ
