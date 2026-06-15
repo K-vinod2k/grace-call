@@ -20,21 +20,45 @@ real outbound phone call and works through the recovery (resumes the booking, of
 The agent is **authored in Copilot Studio**, grounded by **Foundry IQ**, and surfaced in **Microsoft 365 Copilot**. It places the live call through **Azure Communication Services** Call Automation, with **Azure Cognitive Services** (AvaNeural) for voice output.
 For LLM reasoning and STT, it uses **Groq** (free tier: LLaMA 3.3-70B + Whisper) wired into the ACS media stream.
 
-```
-Power Automate (every 5 min) detects overdue rental
-  → Copilot Studio agent (GraceCall) + Foundry IQ (policy · rate card · agreement)
-  → TriggerOverdueCall custom action → POST /trigger-call → GraceCall service (Azure Container Apps)
-  → decideObjective(): recover | extend | charge | escalate
-  → Azure Communication Services Call Automation: outbound PSTN call placed
-  → Groq Whisper (STT) + LLaMA 3.3-70B (LLM) drives the conversation
-  → Azure Cognitive Services AvaNeural TTS: Vera speaks
-  → Full agentic loop:
-      1. Vera calls → customer promises to return → logged with promised time
-      2. Re-check timer starts (RECHECK_AFTER_MIN)
-      3. At promised time: auto-check rental status
-      4. If not returned → escalate + 2nd call ("This is a follow-up call from Vera...")
-  → Dashboard: live transcript, escalation badge, re-check countdown
-  → Outcome + transcript → Microsoft 365 Copilot (staff query in Teams)
+```mermaid
+graph TD
+    PA["⏱️ Power Automate\nevery 5 min"]
+
+    subgraph msft ["Microsoft Platform"]
+        CS["🤖 Copilot Studio\nGraceCall Agent"]
+        FIQ[("📚 Foundry IQ\nPolicy · Rate Card · Agreement")]
+        TOOL(["TriggerOverdueCall\ncustom action"])
+        ACSSVC["📞 Azure Communication Services\nCall Automation · PSTN"]
+        AZURETSS["🔊 Azure Cognitive Services\nAvaNeural TTS"]
+        M365OUT["💬 Microsoft 365 Copilot\nOps queries in Teams"]
+    end
+
+    subgraph svc ["GraceCall Service · Azure Container Apps"]
+        DECIDE["decideObjective()\nrecover · extend · charge · escalate"]
+        RECHECK["Re-check Scheduler\n2nd call if not returned"]
+        DASH["Live Dashboard\nlocalhost:8080/dashboard"]
+    end
+
+    subgraph groq ["Groq — free tier"]
+        WSTT["Whisper STT\ntranscribes caller audio"]
+        LLAMA["LLaMA 3.3-70B\nconversation reasoning"]
+    end
+
+    PHONE["📱 Customer Phone"]
+
+    PA --> CS
+    CS <-->|"retrieves policy"| FIQ
+    CS --> TOOL --> DECIDE
+    DECIDE --> ACSSVC
+    ACSSVC <-->|"PSTN call"| PHONE
+    PHONE -->|"caller audio"| WSTT
+    WSTT --> LLAMA
+    LLAMA --> AZURETSS
+    AZURETSS -->|"Vera's voice"| ACSSVC
+    DECIDE --> RECHECK
+    RECHECK -->|"fires follow-up"| DECIDE
+    DECIDE --> M365OUT
+    DECIDE --> DASH
 ```
 
 ---
