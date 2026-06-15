@@ -5,23 +5,36 @@
 Most agents are chatbots. **GraceCall calls you.** When a rental car goes overdue, Vera (our AI persona) places a
 real outbound phone call and works through the recovery (resumes the booking, offers an extension, settles the overage, or escalates) all within policy. If the customer promises to return it, the agent re-checks automatically when promised. No callback, no follow-up email: just a second call if needed.
 
-The agent is **orchestrated by Azure AI Foundry** (GraceCall-Dispatcher agent, gpt-oss-120b), grounded in policy by **Foundry IQ** knowledge sources, and places the live call through **Azure Communication Services** Call Automation.
-For speech processing, it uses **Groq** (free tier: Whisper for STT, LLaMA 3.3-70B for LLM) and **Azure Cognitive Services** for TTS (AvaNeural voice).
+### Microsoft stack
+
+| Service | Role in GraceCall |
+|---|---|
+| **Copilot Studio** | Agent authoring: instructions, Foundry IQ knowledge connection, `TriggerOverdueCall` custom action |
+| **Azure AI Foundry + Foundry IQ** | Knowledge grounding: overage policy, rate card, rental agreement retrieved per call |
+| **Microsoft 365 Copilot** | Ops surface: staff query outcomes ("What did Vera say to Alex?") directly in Teams/M365 |
+| **Azure Communication Services** | Call Automation: places the real outbound PSTN call and streams audio |
+| **Azure Cognitive Services** | TTS: AvaNeural voice renders Vera's responses naturally |
+| **Azure Container Apps** | Hosts the GraceCall backend service (always-on, auto-scaled) |
+| **Power Automate** | Scheduled trigger: polls for overdue rentals every 5 minutes and invokes the Copilot Studio agent |
+
+The agent is **authored in Copilot Studio**, grounded by **Foundry IQ**, and surfaced in **Microsoft 365 Copilot**. It places the live call through **Azure Communication Services** Call Automation, with **Azure Cognitive Services** (AvaNeural) for voice output.
+For LLM reasoning and STT, it uses **Groq** (free tier: LLaMA 3.3-70B + Whisper) wired into the ACS media stream.
 
 ```
-Overdue rental detected
-  → Azure AI Foundry agent (GraceCall-Dispatcher, gpt-oss-120b) + Foundry IQ knowledge
-  → triggerOverdueCall OpenAPI tool → POST /trigger-call → GraceCall service
-  → Azure ACS Call Automation: outbound PSTN call placed
-  → Groq Whisper (STT) + LLaMA 3.3-70B (LLM) handles conversation
-  → Azure Cognitive Services: AvaNeural TTS response
+Power Automate (every 5 min) detects overdue rental
+  → Copilot Studio agent (GraceCall) + Foundry IQ (policy · rate card · agreement)
+  → TriggerOverdueCall custom action → POST /trigger-call → GraceCall service (Azure Container Apps)
+  → decideObjective(): recover | extend | charge | escalate
+  → Azure Communication Services Call Automation: outbound PSTN call placed
+  → Groq Whisper (STT) + LLaMA 3.3-70B (LLM) drives the conversation
+  → Azure Cognitive Services AvaNeural TTS: Vera speaks
   → Full agentic loop:
       1. Vera calls → customer promises to return → logged with promised time
-      2. Re-check timer starts (RECHECK_AFTER_MIN env var)
-      3. At promised time, auto-check rental status
-      4. If not returned → flag for escalation + 2nd call ("This is a follow-up call from Vera...")
-  → Dashboard shows: transcript, escalation badge, countdown to re-check
-  → Outcome + decision log surfaced in Foundry agent chat
+      2. Re-check timer starts (RECHECK_AFTER_MIN)
+      3. At promised time: auto-check rental status
+      4. If not returned → escalate + 2nd call ("This is a follow-up call from Vera...")
+  → Dashboard: live transcript, escalation badge, re-check countdown
+  → Outcome + transcript → Microsoft 365 Copilot (staff query in Teams)
 ```
 
 ---
@@ -73,7 +86,7 @@ npm run dev                # starts on :8080
 - `ACS_CONNECTION_STRING` + `ACS_CALLER_ID`: Azure Communication Services (outbound PSTN)
 - `AZURE_SPEECH_KEY` + `AZURE_SPEECH_REGION`: Azure Cognitive Services (TTS with AvaNeural)
 - `CALLBACK_BASE_URL`: HTTPS URL reachable by ACS (dev tunnel / ngrok)
-- `TRIGGER_API_KEY`: shared secret used to authenticate the `/trigger-call` endpoint
+- `TRIGGER_API_KEY`: shared secret sent by Copilot Studio in `X-GraceCall-Key` header
 - `ENABLE_MEDIA_STREAMING=1`: enables two-way conversation
 - `AUTO_DIAL=1`: auto-calls overdue rentals every minute
 - `RECHECK_AFTER_MIN=2`: for demo (re-check after 2 minutes; production: 60+)
@@ -86,11 +99,11 @@ npm run trigger:demo RNT-1002      # extend scenario
 
 Watch the full loop live at **`http://localhost:8080/dashboard`**: transcript, re-check countdown, escalation badge, and follow-up call trigger all update in real-time.
 
-## Triggering: manual, automatic, or Foundry agent
+## Triggering: manual, automatic, or via Copilot Studio
 | Mode | How | For |
 |---|---|---|
 | Manual (CLI) | `npm run trigger:demo [rentalId]` | quick tests |
-| Manual (agent) | In Azure AI Foundry chat: *"Call Alex Rivera about his overdue SUV"* | the demo |
+| Manual (agent) | In Copilot Studio / M365 Copilot: *"Call Alex Rivera about his overdue SUV"* | the demo |
 | Automatic (initial) | `AUTO_DIAL=1` → checks every minute, calls any rental overdue by `AUTO_DIAL_AFTER_MIN` (default 60) | autonomous initial calls |
 | Automatic (re-check) | After promised return time: automatically re-checks rental status and triggers follow-up if needed | full agentic loop |
 
@@ -121,20 +134,29 @@ remains is cloud setup that needs your accounts and logins:
 ---
 
 ## Tech stack & how the track requirements are met
-| Requirement | Met by |
+| Track requirement | How GraceCall meets it |
 |---|---|
-| **Azure AI Foundry** agent | GraceCall-Dispatcher agent (gpt-oss-120b): instructions, OpenAPI tool, Foundry IQ knowledge |
-| **Microsoft IQ layer** | **Foundry IQ** knowledge sources (overage policy, rate card, agreement) ground every decision |
-| Real business scenario + Responsible AI | Rental-overage recovery; AI disclosure, do-not-call, escalation, no card-by-voice, charge & attempt caps |
-| **Full agentic autonomy** | Automatically re-checks promised return times, triggers follow-up calls, escalates without human intervention |
+| **Authored in Copilot Studio** | GraceCall agent: instructions, Foundry IQ knowledge, `TriggerOverdueCall` custom action |
+| **Microsoft IQ layer (Foundry IQ)** | Overage policy, rate card, and rental agreement retrieved per call; every decision is grounded in retrieved knowledge |
+| **Microsoft 365 Copilot surface** | Agent published to M365 Copilot; ops staff query outcomes in Teams ("What happened with RNT-1001?") |
+| **Real business scenario** | Rental-overage recovery: recover booked vehicles, extend idle ones, settle charges, escalate disputes |
+| **Responsible AI** | AI disclosure on first sentence, do-not-call honored, escalates on distress, no card numbers by voice, charge and attempt caps enforced in code |
+| **Full agentic autonomy** | Power Automate triggers every 5 min; agent re-checks promised return times and places follow-up calls without human intervention |
 
-**Built with:**
-- **Backend:** TypeScript · Node/Express · `@azure/communication-call-automation`
-- **Speech Processing:** Groq (Whisper for STT, LLaMA 3.3-70B for LLM reasoning)
-- **Voice Output:** Azure Cognitive Services TTS (AvaNeural voice)
-- **Autonomy:** Async scheduler + re-check timers; decision engine runs independently
-- **Real-time Dashboard:** WebSocket updates, live transcript, escalation badges, re-check countdown
-- **Prompt Engineering:** Few-Shot + Contrastive CoT, ReAct, ART, Chain-of-Verification, Rephrase-and-Respond, Thread-of-Thought techniques
+**Microsoft services:**
+- **Copilot Studio** - agent brain, knowledge, custom action orchestration
+- **Azure AI Foundry + Foundry IQ** - model deployment, knowledge grounding
+- **Microsoft 365 Copilot** - ops query surface in Teams
+- **Azure Communication Services** - outbound PSTN Call Automation
+- **Azure Cognitive Services** - AvaNeural TTS
+- **Azure Container Apps** - backend hosting
+- **Power Automate** - scheduled overdue-rental trigger
+
+**Non-Microsoft (speech processing, free tier):**
+- **Groq Whisper** - STT transcription of caller audio
+- **Groq LLaMA 3.3-70B** - LLM reasoning for conversation turns
+
+**Backend:** TypeScript · Node/Express · `@azure/communication-call-automation`
 
 ## Security
 - **Secrets are environment-variable only.** Nothing is hardcoded; `.gitignore` blocks `.env`. Only
