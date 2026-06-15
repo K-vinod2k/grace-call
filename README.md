@@ -16,7 +16,7 @@ graph TD
     classDef pa      fill:#107c10,stroke:#0a5a0a,color:#fff,rx:6
     classDef phone   fill:#1f2937,stroke:#374151,color:#e5e7eb,rx:6
 
-    PA["⏱️ Power Automate\nevery 5 min"]:::pa
+    PA["⏱️ Power Automate\nevery 1 hr"]:::pa
 
     subgraph msft ["  🟦  Microsoft Platform  "]
         CS["🤖 Copilot Studio\nGraceCall Agent"]:::ms
@@ -77,7 +77,7 @@ graph TD
 | **Azure Communication Services** | Places the real outbound PSTN call and streams audio |
 | **Azure Cognitive Services** | AvaNeural TTS renders Vera's voice |
 | **Azure Container Apps** | Hosts the backend (always-on) |
-| **Power Automate** | Polls for overdue rentals every 5 minutes, no human trigger needed |
+| **Power Automate** | Polls for overdue rentals every hour, no human trigger needed |
 
 ---
 
