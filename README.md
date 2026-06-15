@@ -206,6 +206,22 @@ In every case: tell the Copilot Studio agent what to do → it calls the right p
 
 ---
 
+## Built on Azure Student Subscription: constraints and how we solved them
+
+This project was built entirely on an **Azure for Students** subscription with no paid credits. That meant real limitations — and real engineering to work around them.
+
+| Constraint | Why it mattered | How we solved it |
+|---|---|---|
+| **Azure Voice Live (gpt-realtime) not available** | The native Azure real-time speech-to-speech API is restricted on student subscriptions. This was the intended conversation engine. | Replaced with **Groq free tier**: Whisper for STT, LLaMA 3.3-70B for reasoning. Bridged ACS audio stream to Groq over WebSocket at 24kHz PCM with no resampling. |
+| **No static public HTTPS URL** | ACS Call Automation requires a publicly reachable callback URL to deliver call lifecycle events. Student accounts can't provision static IPs or custom domains cheaply. | Used **ngrok** to tunnel `localhost:8080` to a public HTTPS endpoint. Callback URL is set via `.env`. |
+| **gpt-oss-120b (Global Standard) instead of realtime** | The Foundry agent deployment is on Global Standard, not the low-latency realtime tier. | Acceptable for the orchestration layer — the agent decides and triggers, it doesn't need sub-second latency. Latency-sensitive work (the actual conversation) runs on Groq. |
+| **Spending limits and quota caps** | Student subscriptions have hard spending caps. Any accidental loop or runaway auto-dial could exhaust quota instantly. | `AUTO_DIAL=0` is the default. The re-check scheduler is opt-in via `RECHECK_AFTER_MIN`. Dashboard "Force Re-check" button gives manual control during demo. |
+| **ACS phone number provisioning** | Buying an ACS outbound number requires a paid Azure subscription in most regions. | Used a demo phone number already provisioned on the subscription. The connector spec and code are wired for any ACS number via `.env`. |
+
+Building this on a student subscription forced tighter engineering than a paid setup would have. The Groq bridge in particular — streaming raw 24kHz PCM from ACS into Whisper and back — is the kind of integration you only write when you can't pay for the managed alternative.
+
+---
+
 ## Security
 - **Secrets are environment-variable only.** Nothing is hardcoded; `.gitignore` blocks `.env`. Only
   `.env.example` (placeholders) is committed.
