@@ -188,6 +188,24 @@ remains is cloud setup that needs your accounts and logins:
 
 **Backend:** TypeScript · Node/Express · `@azure/communication-call-automation`
 
+## Beyond rental cars: the pattern is vertical-agnostic
+
+GraceCall is a rental-overage recovery agent for the demo, but the architecture transfers directly to any industry where a delayed or missed commitment needs a proactive, policy-safe voice follow-up. Swap the Foundry IQ knowledge documents and the decision policy — the Copilot Studio agent, ACS call infrastructure, and agentic re-check loop stay unchanged.
+
+| Industry | Trigger | What the agent does |
+|---|---|---|
+| **Hospitality** | Hotel checkout overdue | Calls guest, offers late checkout at the posted rate, logs promise, re-checks at promised time |
+| **Equipment rental** | Tool or machinery not returned | Recovers high-value assets, offers extension, escalates to field team |
+| **Healthcare** | Appointment no-show | Calls patient, reschedules within policy, flags chronic no-shows for human follow-up |
+| **Property management** | Rent payment overdue | Courtesy call, offers payment plan within landlord policy, logs commitment |
+| **Logistics** | Delivery window missed | Proactive outbound to recipient, re-schedules, updates dispatch system |
+| **Fitness / subscriptions** | Failed payment | Calls member, offers grace period or downgrade, avoids involuntary churn |
+| **Libraries / shared assets** | Item overdue | Reminds borrower, logs return commitment, triggers second call if needed |
+
+In every case: one knowledge upload to Foundry IQ + one policy file = a new vertical. The Copilot Studio agent, ACS telephony, and re-check scheduler require no code changes.
+
+---
+
 ## Security
 - **Secrets are environment-variable only.** Nothing is hardcoded; `.gitignore` blocks `.env`. Only
   `.env.example` (placeholders) is committed.
