@@ -18,6 +18,9 @@
 import express, { type Request, type Response } from "express";
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
+import { z } from "zod";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { assertConfig, config } from "./config.js";
 import { getRental, listAllRentals, updateRental, markReturned, markEscalated, minutesOverdue, writeRemarks } from "./data/rentals.js";
 import { decideObjective } from "./agent/policy.js";
@@ -173,6 +176,28 @@ app.post("/rentals/:rentalId/recheck", async (req: Request, res: Response) => {
   console.log(`[RECHECK] Manual trigger for ${id} — placing second call.`);
   const body = await runTrigger(id);
   return res.json({ status: "escalated", call: body });
+});
+
+// MCP endpoint — Foundry agents with MCP tool support connect here.
+// Stateless: each POST is an independent JSON-RPC exchange (no session).
+app.all("/mcp", async (req: Request, res: Response) => {
+  if (req.header("X-GraceCall-Key") !== config.triggerApiKey) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  const mcpServer = new McpServer({ name: "gracecall", version: "1.0.0" });
+  mcpServer.tool(
+    "triggerOverdueCall",
+    "Place an outbound AI voice call for an overdue rental car. Returns the agent's decision (recover/extend/charge/escalate) and call status.",
+    { rentalId: z.string().describe("The rental ID to call about, e.g. RNT-1001") },
+    async ({ rentalId }) => {
+      const result = await runTrigger(rentalId);
+      if (!result) return { content: [{ type: "text" as const, text: `Unknown rental: ${rentalId}` }], isError: true };
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+    },
+  );
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  await mcpServer.connect(transport);
+  await transport.handleRequest(req, res, req.body);
 });
 
 app.post("/trigger-call", async (req: Request, res: Response) => {
