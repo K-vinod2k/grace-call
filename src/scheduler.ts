@@ -1,7 +1,7 @@
 /**
  * Built-in autonomous dialer (the "agent decides WHEN to call" behavior).
  *
- * When AUTO_DIAL=1, this checks every minute and triggers a call for any rental that has been overdue
+ * When AUTO_DIAL=1, this checks every hour and triggers a call for any rental that has been overdue
  * by `afterMinutes` (the "~1 hour after the return time was exceeded" rule), skipping do-not-call and
  * anything already attempted this run. It calls the SAME trigger path as the manual endpoint.
  *
@@ -13,7 +13,7 @@ import { listOverdueRentals, listPendingReChecks, markEscalated, minutesOverdue 
 export interface SchedulerOptions {
   /** Call once a rental has been overdue by at least this many minutes. */
   afterMinutes: number;
-  /** How often to check. Default 60s. */
+  /** How often to check. Default 1h (matches Power Automate schedule). */
   intervalMs?: number;
 }
 
@@ -57,7 +57,7 @@ export function startScheduler(
   opts: SchedulerOptions,
 ): () => void {
   const attempted = new Set<string>();
-  const intervalMs = opts.intervalMs ?? 60_000;
+  const intervalMs = opts.intervalMs ?? 3_600_000;
 
   const tick = async (): Promise<void> => {
     const now = new Date();
