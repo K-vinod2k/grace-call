@@ -6,6 +6,9 @@ export function dashboardHtml(): string {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>GraceCall — Live Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #0f1117;
@@ -23,7 +26,7 @@ export function dashboardHtml(): string {
     --customer-bubble: #1e2d1e;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.5; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.5; }
 
   header {
     background: var(--surface);
@@ -35,30 +38,74 @@ export function dashboardHtml(): string {
   }
   header h1 { font-size: 16px; font-weight: 600; letter-spacing: .02em; }
   header .tagline { color: var(--muted); font-size: 12px; }
-  .pulse { width: 8px; height: 8px; border-radius: 50%; background: #107c10; animation: pulse 1.5s ease-in-out infinite; }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: #107c10; animation: pulse 1.5s ease-in-out infinite; flex-shrink: 0; }
   @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
-  .api-key-row {
+
+  /* Key icon button — replaces the visible API key input */
+  .key-area { margin-left: auto; position: relative; }
+  .key-icon-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 5px 10px;
+    cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-left: auto;
+    gap: 5px;
+    transition: border-color .15s, color .15s;
   }
-  .api-key-row label {
-    font-size: 11px;
-    color: var(--muted);
-    white-space: nowrap;
+  .key-icon-btn:hover { border-color: var(--ms-blue); color: var(--text); }
+  .key-icon-btn.has-key { color: var(--extend); border-color: var(--extend); }
+  .key-popover {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    width: 260px;
+    z-index: 100;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4);
   }
-  .api-key-row input {
+  .key-popover.open { display: block; }
+  .key-popover label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px; }
+  .key-popover input {
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text);
-    font-size: 11px;
-    padding: 3px 8px;
-    width: 190px;
+    font-size: 12px;
+    font-family: monospace;
+    padding: 5px 8px;
+    width: 100%;
     outline: none;
   }
-  .api-key-row input:focus { border-color: var(--ms-blue); }
+  .key-popover input:focus { border-color: var(--ms-blue); }
+  .key-popover-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .key-popover-save {
+    background: var(--ms-blue);
+    border: none;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 14px;
+    cursor: pointer;
+  }
+  .key-popover-clear {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--muted);
+    font-size: 11px;
+    padding: 5px 10px;
+    cursor: pointer;
+  }
+
   .ms-badge {
     font-size: 11px;
     padding: 3px 10px;
@@ -67,6 +114,26 @@ export function dashboardHtml(): string {
     color: var(--ms-blue);
     flex-shrink: 0;
   }
+
+  /* KPI status strip */
+  #kpi-strip {
+    background: #13161f;
+    border-bottom: 1px solid var(--border);
+    padding: 6px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-size: 12px;
+  }
+  .kpi-item { display: flex; align-items: center; gap: 6px; }
+  .kpi-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .kpi-dot.active   { background: var(--recover); animation: pulse 1s ease-in-out infinite; }
+  .kpi-dot.overdue  { background: var(--escalate); }
+  .kpi-dot.returned { background: var(--extend); }
+  .kpi-dot.idle     { background: var(--border); }
+  .kpi-label { color: var(--muted); }
+  .kpi-value { font-weight: 600; }
+  #kpi-strip .kpi-sep { color: var(--border); }
 
   main { padding: 20px 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1200px; margin: 0 auto; }
   @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
@@ -166,7 +233,17 @@ export function dashboardHtml(): string {
   .refresh-hint { text-align: right; font-size: 11px; color: var(--border); padding: 6px 0; }
   .error-banner { background: #3a1010; border: 1px solid var(--recover); border-radius: 6px; padding: 10px 14px; color: #ffb3b3; font-size: 12px; margin-bottom: 12px; }
   .action-row { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
-  .btn { font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 4px; border: 1px solid; cursor: pointer; background: transparent; }
+  .btn {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
+    background: transparent;
+    min-height: 36px;
+    touch-action: manipulation;
+  }
   .btn-return  { border-color: var(--extend);  color: var(--extend);  }
   .btn-return.active  { background: var(--extend);  color: #fff; }
   .btn-recheck { border-color: var(--escalate); color: var(--escalate); }
@@ -196,6 +273,73 @@ export function dashboardHtml(): string {
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   .countdown { font-size: 11px; color: var(--ms-blue); margin-top: 6px; }
+
+  /* ── Live Transcript panels (now the page hero) ──────────────────── */
+  .live-transcript-section { margin-bottom: 4px; }
+  .live-transcript-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 800px) { .live-transcript-grid { grid-template-columns: 1fr; } }
+  .transcript-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    min-height: 200px;
+    transition: border-color .2s;
+  }
+  .transcript-panel.active {
+    border-color: var(--recover);
+    box-shadow: 0 0 0 1px var(--recover);
+  }
+  .transcript-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--recover);
+    animation: pulse 1s ease-in-out infinite;
+    display: none;
+    flex-shrink: 0;
+  }
+  .live-dot.show { display: inline-block; }
+  .live-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--recover);
+    display: none;
+    margin-left: 2px;
+  }
+  .live-label.show { display: inline; }
+  .transcript-scroll {
+    max-height: 240px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .t-bubble {
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    max-width: 92%;
+    line-height: 1.45;
+  }
+  .t-bubble.agent    { background: var(--agent-bubble); align-self: flex-start; }
+  .t-bubble.customer { background: var(--customer-bubble); align-self: flex-end; }
+  .t-label { font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+  .t-empty { color: var(--muted); font-size: 12px; padding: 16px 0; text-align: center; }
 
   /* ── AI Integration panels ─────────────────────────────────────────── */
   .ai-panels-row {
@@ -247,17 +391,6 @@ export function dashboardHtml(): string {
     font-size: 12px;
     line-height: 1.7;
   }
-  .ai-placeholder code {
-    display: inline-block;
-    margin-top: 6px;
-    font-size: 11px;
-    background: #0f1117;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 2px 8px;
-    color: var(--ms-blue);
-    font-family: monospace;
-  }
 
   .btn-foundry {
     display: inline-flex;
@@ -282,7 +415,7 @@ export function dashboardHtml(): string {
     border-radius: 6px;
     overflow: hidden;
     border: 1px solid var(--border);
-    display: none;   /* shown by JS when bot URL is present */
+    display: none;
   }
   .copilot-iframe-wrap iframe {
     width: 100%;
@@ -290,79 +423,91 @@ export function dashboardHtml(): string {
     border: none;
   }
 
-  /* ── Live Transcript panels ─────────────────────────────────────────── */
-  .live-transcript-section {
-    grid-column: 1 / -1;
-    margin-top: 8px;
+  @media (prefers-reduced-motion: reduce) {
+    .pulse, .live-dot, .kpi-dot.active { animation: none; }
   }
-  .live-transcript-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-  .transcript-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px 16px;
-    min-height: 160px;
-  }
-  .transcript-panel.active {
-    border-color: var(--recover);
-  }
-  .transcript-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-    font-weight: 600;
-    font-size: 13px;
-  }
-  .live-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--recover);
-    animation: pulse 1s ease-in-out infinite;
-    display: none;
-  }
-  .live-dot.show { display: inline-block; }
-  .transcript-scroll {
-    max-height: 220px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-  .t-bubble {
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 12px;
-    max-width: 92%;
-    line-height: 1.45;
-  }
-  .t-bubble.agent    { background: var(--agent-bubble); align-self: flex-start; }
-  .t-bubble.customer { background: var(--customer-bubble); align-self: flex-end; }
-  .t-label { font-size: 10px; color: var(--muted); margin-bottom: 2px; }
-  .t-empty { color: var(--muted); font-size: 12px; padding: 16px 0; text-align: center; }
 </style>
 </head>
 <body>
 <header>
-  <div class="pulse"></div>
+  <div class="pulse" aria-hidden="true"></div>
   <div>
     <h1>GraceCall</h1>
     <div class="tagline">Horizon Car Rental — Overdue Vehicle Voice Agent</div>
   </div>
-  <div class="api-key-row">
-    <label for="api-key-input">API Key</label>
-    <input id="api-key-input" type="password" placeholder="Paste TRIGGER_API_KEY…" autocomplete="off">
-  </div>
   <div class="ms-badge">Enterprise Agents · Foundry IQ</div>
+  <div class="key-area">
+    <button class="key-icon-btn" id="key-toggle-btn" onclick="toggleKeyPopover()" aria-label="Configure API key" title="Set API key for placing calls">
+      <span id="key-icon">🔒</span>
+      <span id="key-status-text" style="font-size:11px">API Key</span>
+    </button>
+    <div class="key-popover" id="key-popover" role="dialog" aria-label="API key configuration">
+      <label for="api-key-input">TRIGGER_API_KEY <span style="color:var(--muted);font-weight:400">(from .env)</span></label>
+      <input id="api-key-input" type="password" placeholder="Paste key…" autocomplete="off"
+        onkeydown="if(event.key==='Enter')saveApiKey()">
+      <div class="key-popover-actions">
+        <button class="key-popover-save" onclick="saveApiKey()">Save</button>
+        <button class="key-popover-clear" onclick="clearApiKey()">Clear</button>
+      </div>
+    </div>
+  </div>
 </header>
 
+<!-- KPI status strip — updates every 2s with refresh() -->
+<div id="kpi-strip" aria-live="polite" aria-label="System status">
+  <div class="kpi-item">
+    <div class="kpi-dot idle" id="kpi-dot-active"></div>
+    <span class="kpi-label">Active</span>
+    <span class="kpi-value" id="kpi-active">—</span>
+  </div>
+  <span class="kpi-sep">·</span>
+  <div class="kpi-item">
+    <div class="kpi-dot overdue" id="kpi-dot-overdue"></div>
+    <span class="kpi-label">Overdue</span>
+    <span class="kpi-value" id="kpi-overdue">—</span>
+  </div>
+  <span class="kpi-sep">·</span>
+  <div class="kpi-item">
+    <div class="kpi-dot returned"></div>
+    <span class="kpi-label">Recovered</span>
+    <span class="kpi-value" id="kpi-recovered">—</span>
+  </div>
+  <span class="kpi-sep">·</span>
+  <div class="kpi-item">
+    <span class="kpi-label">Calls placed</span>
+    <span class="kpi-value" id="kpi-calls">—</span>
+  </div>
+</div>
+
 <main>
-  <!-- Left: seed rental status -->
+  <!-- 1. Live Transcript — hero position, above the fold -->
+  <div class="live-transcript-section full-width">
+    <div class="section-title">Live Transcript</div>
+    <div class="live-transcript-grid">
+      <div class="transcript-panel" id="tp-RNT-1001">
+        <div class="transcript-header">
+          <div class="live-dot" id="dot-RNT-1001" aria-hidden="true"></div>
+          <span class="live-label" id="live-label-RNT-1001">Live</span>
+          <span id="tname-RNT-1001">RNT-1001 &middot; Alex Rivera</span>
+        </div>
+        <div class="transcript-scroll" id="ts-RNT-1001" aria-live="polite" aria-label="Live transcript for RNT-1001">
+          <div class="t-empty">Waiting for call&hellip;</div>
+        </div>
+      </div>
+      <div class="transcript-panel" id="tp-RNT-1002">
+        <div class="transcript-header">
+          <div class="live-dot" id="dot-RNT-1002" aria-hidden="true"></div>
+          <span class="live-label" id="live-label-RNT-1002">Live</span>
+          <span id="tname-RNT-1002">RNT-1002 &middot; Jordan Lee</span>
+        </div>
+        <div class="transcript-scroll" id="ts-RNT-1002" aria-live="polite" aria-label="Live transcript for RNT-1002">
+          <div class="t-empty">Waiting for call&hellip;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Demo Rentals + Call Log side-by-side -->
   <div>
     <div class="section-title">Demo Rentals</div>
     <div class="rentals-row" id="rental-cards">
@@ -371,41 +516,15 @@ export function dashboardHtml(): string {
     </div>
   </div>
 
-  <!-- Right: live call log -->
   <div>
     <div class="section-title">Recent Calls <span id="call-count" style="color:var(--ms-blue)"></span></div>
     <div id="call-list" class="call-list">
-      <div class="empty-state">No calls yet — run <code>npm run trigger:demo</code> to place one.</div>
+      <div class="empty-state">No calls placed yet &mdash; select a rental above and click Make Call.</div>
     </div>
     <div class="refresh-hint" id="refresh-hint"></div>
   </div>
 
-  <!-- Live Transcript Panels -->
-  <div class="live-transcript-section full-width">
-    <div class="section-title">Live Transcript</div>
-    <div class="live-transcript-grid">
-      <div class="transcript-panel" id="tp-RNT-1001">
-        <div class="transcript-header">
-          <div class="live-dot" id="dot-RNT-1001"></div>
-          <span id="tname-RNT-1001">RNT-1001 &middot; Alex Rivera</span>
-        </div>
-        <div class="transcript-scroll" id="ts-RNT-1001">
-          <div class="t-empty">Waiting for call&hellip;</div>
-        </div>
-      </div>
-      <div class="transcript-panel" id="tp-RNT-1002">
-        <div class="transcript-header">
-          <div class="live-dot" id="dot-RNT-1002"></div>
-          <span id="tname-RNT-1002">RNT-1002 &middot; Jordan Lee</span>
-        </div>
-        <div class="transcript-scroll" id="ts-RNT-1002">
-          <div class="t-empty">Waiting for call&hellip;</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- AI Integration row: Azure AI Foundry + Copilot Studio -->
+  <!-- 3. AI Integration row: Azure AI Foundry + Copilot Studio -->
   <div class="full-width" style="margin-top: 8px;">
     <div class="section-title">AI Integration</div>
     <div class="ai-panels-row">
@@ -413,7 +532,7 @@ export function dashboardHtml(): string {
       <!-- Left: Azure AI Foundry -->
       <div class="ai-panel">
         <div class="ai-panel-header">
-          <div class="ai-panel-icon foundry">&#x2728;</div>
+          <div class="ai-panel-icon foundry" aria-hidden="true">&#x2728;</div>
           <div>
             <div class="ai-panel-title">Azure AI Foundry</div>
             <div class="ai-panel-subtitle">Foundry IQ knowledge &amp; model playground</div>
@@ -431,7 +550,7 @@ export function dashboardHtml(): string {
       <!-- Right: Copilot Studio embedded agent -->
       <div class="ai-panel">
         <div class="ai-panel-header">
-          <div class="ai-panel-icon copilot">&#x1F916;</div>
+          <div class="ai-panel-icon copilot" aria-hidden="true">&#x1F916;</div>
           <div>
             <div class="ai-panel-title">Copilot Studio</div>
             <div class="ai-panel-subtitle">Embedded conversational agent</div>
@@ -440,8 +559,8 @@ export function dashboardHtml(): string {
 
         <!-- Placeholder shown until /config-public returns a bot URL -->
         <div class="ai-placeholder" id="copilot-placeholder">
-          No Copilot Studio agent configured yet.<br>
-          Paste your Direct Line URL into <code>.env</code> as <code>COPILOT_BOT_URL</code> to enable the embedded agent here.
+          Copilot Studio agent embed<br>
+          <span style="font-size:11px;color:var(--border)">Activate by setting COPILOT_BOT_URL in environment</span>
         </div>
 
         <!-- iframe injected by JS once bot URL is available -->
@@ -459,10 +578,83 @@ export function dashboardHtml(): string {
 const OBJ_CLASS = { recover:'obj-recover', extend:'obj-extend', charge:'obj-charge', escalate:'obj-escalate' };
 const openCards = new Set();
 
+/* ── API key — persisted to localStorage ────────────────────────── */
+let _cachedApiKey = localStorage.getItem('gcApiKey') || '';
+
 function getApiKey() {
-  return document.getElementById('api-key-input').value.trim();
+  return _cachedApiKey;
 }
 
+function updateKeyIcon() {
+  const btn  = document.getElementById('key-toggle-btn');
+  const icon = document.getElementById('key-icon');
+  const txt  = document.getElementById('key-status-text');
+  if (_cachedApiKey) {
+    btn.classList.add('has-key');
+    if (icon) icon.textContent = '🔓';
+    if (txt) txt.textContent = 'Key set';
+  } else {
+    btn.classList.remove('has-key');
+    if (icon) icon.textContent = '🔒';
+    if (txt) txt.textContent = 'API Key';
+  }
+}
+
+function toggleKeyPopover() {
+  const pop = document.getElementById('key-popover');
+  pop.classList.toggle('open');
+  if (pop.classList.contains('open')) {
+    const input = document.getElementById('api-key-input');
+    input.value = _cachedApiKey;
+    input.focus();
+  }
+}
+
+function saveApiKey() {
+  const val = document.getElementById('api-key-input').value.trim();
+  _cachedApiKey = val;
+  if (val) localStorage.setItem('gcApiKey', val);
+  else localStorage.removeItem('gcApiKey');
+  document.getElementById('key-popover').classList.remove('open');
+  updateKeyIcon();
+}
+
+function clearApiKey() {
+  _cachedApiKey = '';
+  localStorage.removeItem('gcApiKey');
+  document.getElementById('api-key-input').value = '';
+  document.getElementById('key-popover').classList.remove('open');
+  updateKeyIcon();
+}
+
+// Close popover on outside click
+document.addEventListener('click', function(e) {
+  const area = document.querySelector('.key-area');
+  if (area && !area.contains(e.target)) {
+    document.getElementById('key-popover').classList.remove('open');
+  }
+});
+
+updateKeyIcon();
+
+/* ── KPI strip ───────────────────────────────────────────────────── */
+function updateKpiStrip(calls, rentals) {
+  const active    = calls.filter(c => c.placed && !c.outcome).length;
+  const recovered = rentals.filter(r => r.returnedAt).length;
+  const overdue   = rentals.filter(r => !r.returnedAt).length;
+
+  const dotActive = document.getElementById('kpi-dot-active');
+  if (dotActive) {
+    dotActive.className = 'kpi-dot ' + (active > 0 ? 'active' : 'idle');
+  }
+  const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = String(val); };
+  el('kpi-active',    active);
+  el('kpi-overdue',   overdue);
+  el('kpi-recovered', recovered);
+  el('kpi-calls',     calls.length);
+}
+
+/* ── Make Call ───────────────────────────────────────────────────── */
 async function makeCall(rentalId, btn) {
   const apiKey = getApiKey();
   const feedbackEl = document.getElementById('call-feedback-' + rentalId);
@@ -479,7 +671,7 @@ async function makeCall(rentalId, btn) {
   }
 
   if (!apiKey) {
-    showFeedback('Paste your API key in the header first.', 'error');
+    showFeedback('Click the \u{1F512} key icon in the header to set your API key first.', 'error');
     setTimeout(clearFeedback, 4000);
     return;
   }
@@ -503,7 +695,6 @@ async function makeCall(rentalId, btn) {
       showFeedback('Call placed', 'success');
       btn.innerHTML = 'Make Call';
       btn.classList.remove('calling');
-      // leave disabled — refresh() will re-render the card with current state
       await refresh();
       setTimeout(clearFeedback, 3000);
     } else {
@@ -561,7 +752,7 @@ async function triggerRecheck(rentalId, btn) {
       btn.style.color = '#fff';
     }
   } catch {
-    btn.textContent = 'Error';
+    btn.textContent = 'Error — try again';
     btn.disabled = false;
   }
   await refresh();
@@ -656,7 +847,7 @@ function renderTools(actions) {
 
 function renderCalls(calls) {
   if (!calls.length) {
-    return '<div class="empty-state">No calls yet — run <code>npm run trigger:demo</code></div>';
+    return '<div class="empty-state">No calls placed yet — select a rental above and click Make Call.</div>';
   }
   return calls.map((c, i) => {
     const id = 'call-' + i;
@@ -697,6 +888,7 @@ async function refresh() {
     document.getElementById('rental-cards').innerHTML = renderRentals(rentals, calls);
     document.getElementById('call-list').innerHTML = renderCalls(calls);
     document.getElementById('refresh-hint').textContent = 'Last update: ' + new Date().toLocaleTimeString();
+    updateKpiStrip(calls, rentals);
   } catch (e) {
     if (!errShown) {
       document.getElementById('call-list').insertAdjacentHTML('afterbegin', \`<div class="error-banner">Cannot reach /calls: \${e.message}</div>\`);
@@ -712,12 +904,11 @@ setInterval(refresh, 2000);
 async function initCopilotPanel() {
   try {
     const res = await fetch('/config-public');
-    if (!res.ok) return;                          // endpoint not yet wired — stay in placeholder
+    if (!res.ok) return;
     const cfg = await res.json();
     const botUrl = (cfg && typeof cfg.COPILOT_BOT_URL === 'string') ? cfg.COPILOT_BOT_URL.trim() : '';
-    if (!botUrl) return;                          // env var not set — placeholder stays visible
+    if (!botUrl) return;
 
-    // Hide placeholder, show iframe
     const placeholder = document.getElementById('copilot-placeholder');
     const wrap        = document.getElementById('copilot-iframe-wrap');
     if (!placeholder || !wrap) return;
@@ -729,11 +920,10 @@ async function initCopilotPanel() {
     iframe.src              = botUrl;
     iframe.allow            = 'microphone';
     iframe.title            = 'Copilot Studio agent';
-    // Copilot Studio recommends these for the embedded web chat
     iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
     wrap.appendChild(iframe);
   } catch (_) {
-    // /config-public not yet implemented — silently stay in placeholder mode
+    // /config-public not yet implemented — stay in placeholder mode
   }
 }
 
@@ -745,23 +935,25 @@ async function refreshTranscript(rentalId) {
     const res = await fetch('/transcript/' + rentalId);
     if (!res.ok) return;
     const data = await res.json();
-    const panel  = document.getElementById('tp-'  + rentalId);
-    const dot    = document.getElementById('dot-' + rentalId);
-    const scroll = document.getElementById('ts-'  + rentalId);
+    const panel  = document.getElementById('tp-'          + rentalId);
+    const dot    = document.getElementById('dot-'         + rentalId);
+    const label  = document.getElementById('live-label-'  + rentalId);
+    const scroll = document.getElementById('ts-'          + rentalId);
     if (!panel || !dot || !scroll) return;
 
     panel.classList.toggle('active', !!data.active);
     dot.classList.toggle('show',    !!data.active);
+    if (label) label.classList.toggle('show', !!data.active);
 
     if (!data.transcript || !data.transcript.length) {
-      scroll.innerHTML = '<div class="t-empty">Waiting for call\u2026</div>';
+      scroll.innerHTML = '<div class="t-empty">Waiting for call…</div>';
       return;
     }
 
     const atBottom = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 30;
     scroll.innerHTML = data.transcript.map(function(t) {
       return '<div class="t-bubble ' + t.role + '">' +
-        '<div class="t-label">' + (t.role === 'agent' ? '\u{1F916} Vera' : '\u{1F464} Customer') + '</div>' +
+        '<div class="t-label">' + (t.role === 'agent' ? '🤖 Vera' : '👤 Customer') + '</div>' +
         t.text +
         '</div>';
     }).join('');
