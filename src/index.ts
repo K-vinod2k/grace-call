@@ -175,6 +175,18 @@ app.post("/rentals/:rentalId/recheck", async (req: Request, res: Response) => {
   return res.json({ status: "escalated", call: body });
 });
 
+// MCP GET — Foundry opens this as an SSE stream for server-to-client notifications.
+// GraceCall has no server-initiated events; we open the stream and keep it alive with pings.
+app.get("/mcp", (req: Request, res: Response) => {
+  if (req.header("X-GraceCall-Key") !== config.triggerApiKey) return res.status(401).end();
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+  const hb = setInterval(() => res.write(": ping\n\n"), 15_000);
+  req.on("close", () => clearInterval(hb));
+});
+
 // Minimal MCP server (2024-11-05 spec) — stateless JSON-RPC over HTTP.
 // Avoids the SDK's newer spec fields (e.g. execution.taskSupport) that Foundry can't parse.
 app.post("/mcp", async (req: Request, res: Response) => {
