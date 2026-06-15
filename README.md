@@ -188,21 +188,21 @@ remains is cloud setup that needs your accounts and logins:
 
 **Backend:** TypeScript · Node/Express · `@azure/communication-call-automation`
 
-## The pattern: natural language in, real phone call out
+## The pattern: condition detected, call placed automatically
 
-GraceCall demonstrates a broader architecture: a user tells a Copilot Studio agent what to do in plain language, and the agent triggers a real outbound phone call as the action — grounded in knowledge, within policy, with automatic follow-up if needed. The rental scenario is one instance. The same pattern applies anywhere a human would otherwise pick up the phone themselves.
+GraceCall demonstrates a fully autonomous architecture: no user input needed. Power Automate detects a condition, the Copilot Studio agent evaluates it against Foundry IQ policy, and a real outbound phone call is placed automatically. The agent handles the conversation, logs the outcome, and re-checks without anyone lifting a finger. The rental overage scenario is one instance — the same pattern applies to any industry where a real-world event should trigger a proactive voice conversation.
 
-| Industry | What the user says to the agent | What the agent does |
+| Industry | Condition detected | What the agent does automatically |
 |---|---|---|
-| **Sales** | "Follow up with the Johnson account about the proposal" | Calls the prospect, walks through key points, logs the outcome, schedules a callback |
-| **HR / Recruiting** | "Confirm the interview time with the candidate for Thursday" | Calls candidate, confirms slot, handles reschedule if needed, updates the ATS |
-| **Healthcare** | "Check in with the patient about their post-op recovery" | Calls patient, asks structured follow-up questions, flags concerns to the care team |
-| **Real estate** | "Call the lead who viewed the Maple Street listing yesterday" | Calls prospect, gauges interest, books a viewing or escalates to the agent |
-| **Customer support** | "Call the customer on ticket #4821 — their issue is resolved" | Calls customer, confirms resolution, closes the ticket or re-opens if still broken |
-| **Events** | "Confirm the keynote speaker is still coming next week" | Calls speaker, confirms attendance, handles logistics, alerts organiser if at risk |
-| **Field service** | "Let the client know the technician is 30 minutes out" | Calls client, gives ETA, handles access or reschedule requests |
+| **Car rental** | Vehicle not returned past due time | Calls customer, negotiates return or extension, re-checks at promised time, escalates if still out |
+| **Hospitality** | Guest still in room past checkout | Calls guest, offers late checkout at posted rate, logs commitment, follows up if room not vacated |
+| **Healthcare** | Patient missed appointment or hasn't checked in post-op | Calls patient, runs structured follow-up, flags concerns to care team without staff involvement |
+| **Equipment rental** | Tool or machinery overdue at job site | Calls site contact, arranges return or extension, escalates to field team if no response |
+| **Logistics** | Delivery window missed or recipient unreachable | Calls recipient, reschedules window, updates dispatch system automatically |
+| **Property management** | Rent payment not received by due date | Calls tenant, confirms payment plan within landlord policy, logs outcome |
+| **Field service** | Technician ETA updated or job completed | Calls client with update, handles access issues or reschedule without dispatcher involvement |
 
-In every case: tell the Copilot Studio agent what to do → it calls the right person → it handles the conversation within your policy → it follows up automatically if the outcome is unresolved. One knowledge upload to Foundry IQ + one policy file = a new use case. No code changes.
+In every case: one Power Automate trigger + one Foundry IQ knowledge upload + one policy file = a new vertical. The Copilot Studio agent, ACS telephony, conversation engine, and re-check scheduler need no code changes.
 
 ---
 
