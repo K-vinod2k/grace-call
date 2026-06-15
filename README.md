@@ -188,21 +188,21 @@ remains is cloud setup that needs your accounts and logins:
 
 **Backend:** TypeScript · Node/Express · `@azure/communication-call-automation`
 
-## Beyond rental cars: the pattern is vertical-agnostic
+## The pattern: natural language in, real phone call out
 
-GraceCall is a rental-overage recovery agent for the demo, but the architecture transfers directly to any industry where a delayed or missed commitment needs a proactive, policy-safe voice follow-up. Swap the Foundry IQ knowledge documents and the decision policy — the Copilot Studio agent, ACS call infrastructure, and agentic re-check loop stay unchanged.
+GraceCall demonstrates a broader architecture: a user tells a Copilot Studio agent what to do in plain language, and the agent triggers a real outbound phone call as the action — grounded in knowledge, within policy, with automatic follow-up if needed. The rental scenario is one instance. The same pattern applies anywhere a human would otherwise pick up the phone themselves.
 
-| Industry | Trigger | What the agent does |
+| Industry | What the user says to the agent | What the agent does |
 |---|---|---|
-| **Hospitality** | Hotel checkout overdue | Calls guest, offers late checkout at the posted rate, logs promise, re-checks at promised time |
-| **Equipment rental** | Tool or machinery not returned | Recovers high-value assets, offers extension, escalates to field team |
-| **Healthcare** | Appointment no-show | Calls patient, reschedules within policy, flags chronic no-shows for human follow-up |
-| **Property management** | Rent payment overdue | Courtesy call, offers payment plan within landlord policy, logs commitment |
-| **Logistics** | Delivery window missed | Proactive outbound to recipient, re-schedules, updates dispatch system |
-| **Fitness / subscriptions** | Failed payment | Calls member, offers grace period or downgrade, avoids involuntary churn |
-| **Libraries / shared assets** | Item overdue | Reminds borrower, logs return commitment, triggers second call if needed |
+| **Sales** | "Follow up with the Johnson account about the proposal" | Calls the prospect, walks through key points, logs the outcome, schedules a callback |
+| **HR / Recruiting** | "Confirm the interview time with the candidate for Thursday" | Calls candidate, confirms slot, handles reschedule if needed, updates the ATS |
+| **Healthcare** | "Check in with the patient about their post-op recovery" | Calls patient, asks structured follow-up questions, flags concerns to the care team |
+| **Real estate** | "Call the lead who viewed the Maple Street listing yesterday" | Calls prospect, gauges interest, books a viewing or escalates to the agent |
+| **Customer support** | "Call the customer on ticket #4821 — their issue is resolved" | Calls customer, confirms resolution, closes the ticket or re-opens if still broken |
+| **Events** | "Confirm the keynote speaker is still coming next week" | Calls speaker, confirms attendance, handles logistics, alerts organiser if at risk |
+| **Field service** | "Let the client know the technician is 30 minutes out" | Calls client, gives ETA, handles access or reschedule requests |
 
-In every case: one knowledge upload to Foundry IQ + one policy file = a new vertical. The Copilot Studio agent, ACS telephony, and re-check scheduler require no code changes.
+In every case: tell the Copilot Studio agent what to do → it calls the right person → it handles the conversation within your policy → it follows up automatically if the outcome is unresolved. One knowledge upload to Foundry IQ + one policy file = a new use case. No code changes.
 
 ---
 
