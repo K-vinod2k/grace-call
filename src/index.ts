@@ -18,9 +18,6 @@
 import express, { type Request, type Response } from "express";
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
-import { z } from "zod";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { assertConfig, config } from "./config.js";
 import { getRental, listAllRentals, updateRental, markReturned, markEscalated, minutesOverdue, writeRemarks } from "./data/rentals.js";
 import { decideObjective } from "./agent/policy.js";
@@ -178,26 +175,49 @@ app.post("/rentals/:rentalId/recheck", async (req: Request, res: Response) => {
   return res.json({ status: "escalated", call: body });
 });
 
-// MCP endpoint — Foundry agents with MCP tool support connect here.
-// Stateless: each POST is an independent JSON-RPC exchange (no session).
-app.all("/mcp", async (req: Request, res: Response) => {
+// Minimal MCP server (2024-11-05 spec) — stateless JSON-RPC over HTTP.
+// Avoids the SDK's newer spec fields (e.g. execution.taskSupport) that Foundry can't parse.
+app.post("/mcp", async (req: Request, res: Response) => {
   if (req.header("X-GraceCall-Key") !== config.triggerApiKey) {
     return res.status(401).json({ error: "unauthorized" });
   }
-  const mcpServer = new McpServer({ name: "gracecall", version: "1.0.0" });
-  mcpServer.tool(
-    "triggerOverdueCall",
-    "Place an outbound AI voice call for an overdue rental car. Returns the agent's decision (recover/extend/charge/escalate) and call status.",
-    { rentalId: z.string().describe("The rental ID to call about, e.g. RNT-1001") },
-    async ({ rentalId }) => {
+  const msg = req.body as { method?: string; id?: unknown; params?: Record<string, unknown> };
+  const id = msg?.id ?? null;
+  const ok = (result: unknown) => res.json({ jsonrpc: "2.0", id, result });
+  const err = (code: number, message: string) =>
+    res.status(400).json({ jsonrpc: "2.0", id, error: { code, message } });
+
+  switch (msg?.method) {
+    case "initialize":
+      return ok({
+        protocolVersion: "2024-11-05",
+        capabilities: { tools: {} },
+        serverInfo: { name: "gracecall", version: "1.0.0" },
+      });
+    case "notifications/initialized":
+      return res.sendStatus(200);
+    case "tools/list":
+      return ok({
+        tools: [{
+          name: "triggerOverdueCall",
+          description: "Place an outbound AI voice call for an overdue rental car. Returns the agent's decision (recover/extend/charge/escalate) and call status.",
+          inputSchema: {
+            type: "object",
+            properties: { rentalId: { type: "string", description: "Rental ID, e.g. RNT-1001" } },
+            required: ["rentalId"],
+          },
+        }],
+      });
+    case "tools/call": {
+      if (msg.params?.name !== "triggerOverdueCall") return err(-32601, `Unknown tool: ${msg.params?.name}`);
+      const rentalId = String((msg.params?.arguments as Record<string, unknown>)?.rentalId ?? "");
       const result = await runTrigger(rentalId);
-      if (!result) return { content: [{ type: "text" as const, text: `Unknown rental: ${rentalId}` }], isError: true };
-      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
-    },
-  );
-  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-  await mcpServer.connect(transport);
-  await transport.handleRequest(req, res, req.body);
+      if (!result) return ok({ content: [{ type: "text", text: `Unknown rental: ${rentalId}` }], isError: true });
+      return ok({ content: [{ type: "text", text: JSON.stringify(result, null, 2) }] });
+    }
+    default:
+      return err(-32601, `Method not found: ${msg?.method}`);
+  }
 });
 
 app.post("/trigger-call", async (req: Request, res: Response) => {
