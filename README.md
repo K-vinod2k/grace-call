@@ -30,7 +30,7 @@ graph TD
     subgraph gcsvc ["  🟣  GraceCall Service · Azure Container Apps  "]
         DECIDE["decideObjective()\nrecover · extend · charge · escalate"]:::svc
         RECHECK["Re-check Scheduler\n2nd call if not returned"]:::svc
-        DASH["Live Dashboard\n:8080/dashboard"]:::svc
+        DASH["Live Dashboard\nContainer Apps · /dashboard"]:::svc
     end
 
     subgraph groqtier ["  🟠  Groq — free tier  "]
@@ -138,7 +138,7 @@ npm run trigger:demo          # place a call for RNT-1001
 npm run trigger:demo RNT-1002 # extend scenario
 ```
 
-The live dashboard at **`http://localhost:8080/dashboard`** surfaces the full agentic loop in real-time: call transcript, decision objective, escalation status, re-check countdown, and follow-up trigger — updating as Vera conducts the conversation.
+The live dashboard at **`https://grace-call.greenplant-d2f64cf8.eastus.azurecontainerapps.io/dashboard`** surfaces the full agentic loop in real-time: call transcript, decision objective, escalation status, re-check countdown, and follow-up trigger — updating as Vera conducts the conversation.
 
 ---
 
