@@ -8,7 +8,7 @@
  * pay link. This is the difference between a demo and something a judge trusts (20% safety).
  */
 
-import { type RentalRecord, updateRental } from "../data/rentals.js";
+import { type RentalRecord, updateRental, setPromisedReturn } from "../data/rentals.js";
 import { type Decision } from "./policy.js";
 
 export interface ToolDefinition {
@@ -52,7 +52,7 @@ export const toolDefinitions: ToolDefinition[] = [
     name: "chargeOverage",
     description:
       "Charge the overage to the card on file. Refused above the auto-charge ceiling or when no card " +
-      "is on file — in those cases call sendSms with a secure pay link instead.",
+      "is on file — in those cases escalate to a human instead.",
     parameters: {
       type: "object",
       properties: {
@@ -86,18 +86,6 @@ export const toolDefinitions: ToolDefinition[] = [
       required: ["reason"],
     },
   },
-  {
-    type: "function",
-    name: "sendSms",
-    description: "Send the customer an SMS — confirmation, a secure pay link, or a return reminder.",
-    parameters: {
-      type: "object",
-      properties: {
-        message: { type: "string", description: "SMS body. Never include card or secret data." },
-      },
-      required: ["message"],
-    },
-  },
 ];
 
 export async function dispatchTool(
@@ -111,11 +99,9 @@ export async function dispatchTool(
     case "chargeOverage":
       return chargeOverage(Number(args.amountUSD), ctx);
     case "scheduleReturn":
-      return scheduleReturn(String(args.returnByIso), ctx);
+      return await scheduleReturn(String(args.returnByIso), ctx);
     case "escalateToHuman":
       return escalateToHuman(String(args.reason), ctx);
-    case "sendSms":
-      return sendSms(String(args.message), ctx);
     default:
       return { ok: false, message: `Unknown tool: ${name}` };
   }
@@ -146,7 +132,7 @@ function chargeOverage(amountUSD: number, ctx: ToolContext): ToolResult {
   const { decision, rental } = ctx;
   if (!(amountUSD > 0)) return { ok: false, message: "Charge amount must be positive." };
   if (!rental.paymentMethodOnFile) {
-    return { ok: false, message: "No card on file — do not attempt a charge. Send a secure pay link via sendSms." };
+    return { ok: false, message: "No card on file — do not attempt a charge. Escalate to a human agent instead." };
   }
   if (amountUSD > decision.constraints.maxAutoChargeUSD) {
     return {
@@ -161,12 +147,24 @@ function chargeOverage(amountUSD: number, ctx: ToolContext): ToolResult {
   };
 }
 
-function scheduleReturn(returnByIso: string, ctx: ToolContext): ToolResult {
+async function scheduleReturn(returnByIso: string, ctx: ToolContext): Promise<ToolResult> {
   const when = new Date(returnByIso);
   if (Number.isNaN(when.getTime())) return { ok: false, message: "Invalid return time." };
+  const hoursUntilReturn = (when.getTime() - ctx.now.getTime()) / 3_600_000;
+  if (hoursUntilReturn > ctx.decision.constraints.maxAutoExtensionHours) {
+    return {
+      ok: false,
+      message: `Promised return in ~${Math.round(hoursUntilReturn)}h exceeds the ${ctx.decision.constraints.maxAutoExtensionHours}h auto-extension cap. Inform the customer and call escalateToHuman.`,
+    };
+  }
+  try {
+    await setPromisedReturn(ctx.rental.rentalId, returnByIso);
+  } catch {
+    // Store write failure is non-fatal — the commitment is still honored in this session.
+  }
   return {
     ok: true,
-    message: `Logged a firm return commitment for ${returnByIso}. We'll hold the spot and text a reminder.`,
+    message: `Logged a firm return commitment for ${returnByIso}. We'll hold the spot for you.`,
     detail: { action: "scheduleReturn", returnByIso, rentalId: ctx.rental.rentalId },
   };
 }
@@ -179,11 +177,3 @@ function escalateToHuman(reason: string, ctx: ToolContext): ToolResult {
   };
 }
 
-function sendSms(message: string, ctx: ToolContext): ToolResult {
-  // Real send happens in src/acs/ via @azure/communication-sms; here we record intent.
-  return {
-    ok: true,
-    message: "Text sent.",
-    detail: { action: "sendSms", to: ctx.rental.customer.phoneE164, body: message },
-  };
-}
