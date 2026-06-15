@@ -138,7 +138,7 @@ npm run trigger:demo          # place a call for RNT-1001
 npm run trigger:demo RNT-1002 # extend scenario
 ```
 
-Live loop at **`localhost:8080/dashboard`** — transcript, escalation badge, re-check countdown, follow-up call, all in real-time.
+The live dashboard at **`http://localhost:8080/dashboard`** surfaces the full agentic loop in real-time: call transcript, decision objective, escalation status, re-check countdown, and follow-up trigger — updating as Vera conducts the conversation.
 
 ---
 
